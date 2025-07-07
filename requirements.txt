@@ -1,0 +1,8 @@
+streamlit
+pandas
+PyPDF2
+chromadb
+sentence-transformers
+ollama
+requests
+scikit-learn 
