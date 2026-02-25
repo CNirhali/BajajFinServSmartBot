@@ -82,32 +82,51 @@ st.markdown("---")
 
 # --- Analytics Section ---
 st.markdown("## 📊 BFS & Sensex Price Trends")
-bfs_path = os.path.join(DATA_DIR, 'BFS_Daily_Closing_Price.csv')
-sensex_path = os.path.join(DATA_DIR, 'Sensex_Daily_Historical_Data.csv')
+bfs_path = os.path.join(DATA_DIR, "BFS_Daily_Closing_Price.csv")
+sensex_path = os.path.join(DATA_DIR, "Sensex_Daily_Historical_Data.csv")
+
 if os.path.exists(bfs_path) and os.path.exists(sensex_path):
     try:
         bfs_df = pd.read_csv(bfs_path)
         sensex_df = pd.read_csv(sensex_path)
-        # Try to parse date columns
-        for df in [bfs_df, sensex_df]:
-            for col in df.columns:
-                if 'date' in col.lower():
-                    df[col] = pd.to_datetime(df[col], errors='coerce')
-        # Try to find closing price columns
-        bfs_close_col = next((c for c in bfs_df.columns if 'close' in c.lower()), None)
-        sensex_close_col = next((c for c in sensex_df.columns if 'close' in c.lower()), None)
-        bfs_date_col = next((c for c in bfs_df.columns if 'date' in c.lower()), None)
-        sensex_date_col = next((c for c in sensex_df.columns if 'date' in c.lower()), None)
-        if bfs_close_col and sensex_close_col and bfs_date_col and sensex_date_col:
-            merged = pd.merge(
-                bfs_df[[bfs_date_col, bfs_close_col]].rename(columns={bfs_date_col: 'Date', bfs_close_col: 'BFS Close'}),
-                sensex_df[[sensex_date_col, sensex_close_col]].rename(columns={sensex_date_col: 'Date', sensex_close_col: 'Sensex Close'}),
-                on='Date', how='inner'
-            )
-            merged = merged.sort_values('Date')
-            st.line_chart(merged.set_index('Date'))
+
+        # Normalise column names (strip spaces)
+        bfs_df.columns = [c.strip() for c in bfs_df.columns]
+        sensex_df.columns = [c.strip() for c in sensex_df.columns]
+
+        # Hard-coded to your actual column names after stripping:
+        # BFS: Date, Closing_Price
+        # Sensex: Date, Close
+        bfs_df["Date"] = pd.to_datetime(bfs_df["Date"], errors="coerce")
+        sensex_df["Date"] = pd.to_datetime(sensex_df["Date"], errors="coerce")
+
+        # Clean BFS closing price: strip spaces, remove thousands commas, convert to float
+        bfs_df["Closing_Price"] = (
+            bfs_df["Closing_Price"]
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.replace('"', "", regex=False)
+            .str.strip()
+        )
+        bfs_df["Closing_Price"] = pd.to_numeric(bfs_df["Closing_Price"], errors="coerce")
+
+        # Ensure Sensex close is numeric
+        sensex_df["Close"] = pd.to_numeric(sensex_df["Close"], errors="coerce")
+
+        merged = pd.merge(
+            bfs_df[["Date", "Closing_Price"]].rename(columns={"Closing_Price": "BFS Close"}),
+            sensex_df[["Date", "Close"]].rename(columns={"Close": "Sensex Close"}),
+            on="Date",
+            how="inner",
+        )
+
+        merged = merged.dropna(subset=["Date", "BFS Close", "Sensex Close"])
+        merged = merged.sort_values("Date")
+
+        if not merged.empty:
+            st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
         else:
-            st.info("Could not auto-detect date/close columns in CSVs.")
+            st.info("No overlapping, valid dates found between BFS and Sensex CSVs to plot.")
     except Exception as e:
         st.warning(f"Error loading/plotting price data: {e}")
 else:
