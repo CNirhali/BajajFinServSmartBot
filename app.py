@@ -13,14 +13,15 @@ if 'authenticated' not in st.session_state:
 
 def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
-    pw = st.text_input("Enter password to access the SmartBot:", type="password")
-    if st.button("Login"):
-        if pw == PASSWORD:
-            st.session_state['authenticated'] = True
-            st.success("Login successful! Reloading...")
-            st.rerun()
-        else:
-            st.error("Incorrect password. Please try again.")
+    with st.form(key="login_form"):
+        pw = st.text_input("Enter password to access the SmartBot:", type="password")
+        if st.form_submit_button("Login"):
+            if pw == PASSWORD:
+                st.session_state['authenticated'] = True
+                st.success("Login successful! Reloading...")
+                st.rerun()
+            else:
+                st.error("Incorrect password. Please try again.")
 
 if not st.session_state['authenticated']:
     login()
@@ -44,7 +45,12 @@ This bot only uses files you upload or that are present in this folder. No onlin
 
 # --- Admin Panel ---
 st.markdown("## 🛠️ Admin Panel")
-if st.button("Re-index all files (force refresh)"):
+confirm_reindex = st.checkbox("I want to re-index the database (this takes a few moments)")
+if st.button(
+    "Re-index all files (force refresh)",
+    help="Clears the current database and re-processes all PDF and CSV files. Use this after manual file updates.",
+    disabled=not confirm_reindex
+):
     st.info("Re-indexing knowledge base. Please wait...")
     with st.spinner("Re-indexing files..."):
         import subprocess
@@ -139,11 +145,15 @@ if 'chat_history' not in st.session_state:
     st.session_state['chat_history'] = []
 
 st.markdown("## 💬 Ask a question")
-query = st.text_input("Enter your question:", placeholder="e.g. What was the closing price of BFS on Jan 2, 2024?", key="query")
+query = st.text_input(
+    "Enter your question:",
+    placeholder="e.g. Summarize the Q3 earnings call or compare BFS vs Sensex prices on Jan 2nd.",
+    key="query"
+)
 
-if st.button("Ask") or (query and st.session_state.get('last_query') != query):
+if st.button("Ask", help="Submit your question to the AI assistant.") or (query and st.session_state.get('last_query') != query):
     if query:
-        with st.spinner("Thinking..."):
+        with st.spinner("Searching transcripts and generating response..."):
             answer, context = answer_query(query)
         st.session_state['last_query'] = query
         st.session_state['chat_history'].append({
@@ -173,7 +183,8 @@ for i, chat in enumerate(reversed(st.session_state['chat_history'])):
             label="Download Answer & Context as Text",
             data=download_text,
             file_name=f"bfs_smartbot_answer_{i+1}.txt",
-            mime="text/plain"
+            mime="text/plain",
+            help="Download this specific answer and its supporting context as a text file for your records."
         )
     st.markdown("---")
 
