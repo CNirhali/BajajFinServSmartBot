@@ -67,7 +67,13 @@ def embed_and_store(chunks, model=None):
 
     ids = [f"doc_{i}" for i in range(len(texts))]
     collection.add(documents=texts, embeddings=embeddings, metadatas=metadatas, ids=ids)
-    chroma_client.persist()
+
+    # Safely handle persist() which is deprecated/no-op in newer chromadb versions
+    if hasattr(chroma_client, 'persist'):
+        try:
+            chroma_client.persist()
+        except (AttributeError, NotImplementedError):
+            pass
 
 def run_ingestion(model=None):
     """

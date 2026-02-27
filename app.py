@@ -1,6 +1,5 @@
 import streamlit as st
 import bot
-from bot import answer_query
 from data_ingest import run_ingestion
 import os
 import shutil
@@ -155,7 +154,7 @@ with st.form(key="chat_form", clear_on_submit=False):
 if submit_button:
     if query:
         with st.spinner("Thinking..."):
-            answer, context = answer_query(query)
+            answer, context = bot.answer_query(query)
         st.session_state['chat_history'].append({
             'query': query,
             'answer': answer,
