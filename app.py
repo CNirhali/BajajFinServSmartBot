@@ -7,8 +7,11 @@ import io
 import pandas as pd
 
 # --- Simple Authentication ---
-# SECURITY: Use an environment variable for the password, with a default for backward compatibility
-PASSWORD = os.getenv("BOT_PASSWORD", "bajajgpt2024")
+# SECURITY: Use an environment variable for the password
+PASSWORD = os.getenv("BOT_PASSWORD")
+if not PASSWORD:
+    st.error("Missing BOT_PASSWORD environment variable. Please set it before running the app.")
+    st.stop()
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
@@ -64,11 +67,14 @@ uploaded_files = st.file_uploader(
     key="file_uploader"
 )
 
-DATA_DIR = "."
+DATA_DIR = "uploads"
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
         # Use os.path.basename to prevent path traversal
+        # and ensure we save into a dedicated uploads directory
         safe_filename = os.path.basename(uploaded_file.name)
         file_path = os.path.join(DATA_DIR, safe_filename)
         with open(file_path, "wb") as f:
