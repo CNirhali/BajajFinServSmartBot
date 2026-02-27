@@ -7,7 +7,8 @@ import io
 import pandas as pd
 
 # --- Simple Authentication ---
-PASSWORD = "bajajgpt2024"  # Change this to your desired password
+# SECURITY: Use an environment variable for the password, with a default for backward compatibility
+PASSWORD = os.getenv("BOT_PASSWORD", "bajajgpt2024")
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
@@ -67,10 +68,12 @@ DATA_DIR = "."
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
-        file_path = os.path.join(DATA_DIR, uploaded_file.name)
+        # Use os.path.basename to prevent path traversal
+        safe_filename = os.path.basename(uploaded_file.name)
+        file_path = os.path.join(DATA_DIR, safe_filename)
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        st.success(f"Uploaded {uploaded_file.name}")
+        st.success(f"Uploaded {safe_filename}")
     st.info("Re-indexing knowledge base. Please wait...")
     with st.spinner("Re-indexing files..."):
         import subprocess
@@ -164,7 +167,8 @@ for i, chat in enumerate(reversed(st.session_state['chat_history'])):
         context_lines = chat['context'].split('\n')
         for line in context_lines:
             if line.startswith('Source:'):
-                st.markdown(f"<span style='color: #1f77b4; font-weight: bold'>{line}</span>", unsafe_allow_html=True)
+                # Using Streamlit's colored text instead of raw HTML for safety
+                st.markdown(f":blue[**{line}**]")
             else:
                 st.code(line, language=None)
         # Download button for answer and context
@@ -178,5 +182,5 @@ for i, chat in enumerate(reversed(st.session_state['chat_history'])):
     st.markdown("---")
 
 st.markdown("""
-<sub>Tip: Try complex queries like *'Summarize the key points from Q1 earnings call'*, *'Compare BFS and Sensex closing prices on the same day'*, or *'What guidance did management give for FY25?'*</sub>
-""", unsafe_allow_html=True) 
+:gray[Tip: Try complex queries like *'Summarize the key points from Q1 earnings call'*, *'Compare BFS and Sensex closing prices on the same day'*, or *'What guidance did management give for FY25?'*]
+""")
