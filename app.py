@@ -8,7 +8,14 @@ import io
 import pandas as pd
 
 # --- Simple Authentication ---
-PASSWORD = "bajajgpt2024"  # Change this to your desired password
+# Use environment variable for password to avoid hardcoded secrets
+# If not set, the app will require a password, but none will be valid by default
+# for better security in production.
+PASSWORD = os.getenv("BOT_PASSWORD")
+if not PASSWORD:
+    st.error("⚠️ BOT_PASSWORD environment variable is not set. Access is disabled for security.")
+    st.stop()
+
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
@@ -70,7 +77,9 @@ DATA_DIR = "."
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
-        file_path = os.path.join(DATA_DIR, uploaded_file.name)
+        # Sanitize filename to prevent path traversal
+        safe_filename = os.path.basename(uploaded_file.name)
+        file_path = os.path.join(DATA_DIR, safe_filename)
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
         st.success(f"Uploaded {uploaded_file.name}")
@@ -170,11 +179,11 @@ for i, chat in enumerate(reversed(st.session_state['chat_history'])):
     st.markdown(f"**Q{i+1}:** {chat['query']}")
     st.markdown(f"**📝 Answer:** {chat['answer']}")
     with st.expander("Show context used for answer", expanded=False):
-        # Highlight source in context
+        # Highlight source in context using native markdown (avoids unsafe_allow_html)
         context_lines = chat['context'].split('\n')
         for line in context_lines:
             if line.startswith('Source:'):
-                st.markdown(f"<span style='color: #1f77b4; font-weight: bold'>{line}</span>", unsafe_allow_html=True)
+                st.markdown(f":blue[**{line}**]")
             else:
                 st.code(line, language=None)
         # Download button for answer and context
@@ -187,6 +196,4 @@ for i, chat in enumerate(reversed(st.session_state['chat_history'])):
         )
     st.markdown("---")
 
-st.markdown("""
-<sub>Tip: Try complex queries like *'Summarize the key points from Q1 earnings call'*, *'Compare BFS and Sensex closing prices on the same day'*, or *'What guidance did management give for FY25?'*</sub>
-""", unsafe_allow_html=True)
+st.info("💡 **Tip:** Try complex queries like *'Summarize the key points from Q1 earnings call'*, *'Compare BFS and Sensex closing prices on the same day'*, or *'What guidance did management give for FY25?'*")
