@@ -47,7 +47,8 @@ This bot only uses files you upload or that are present in this folder. No onlin
 
 # --- Admin Panel ---
 st.markdown("## 🛠️ Admin Panel")
-if st.button("Re-index all files (force refresh)"):
+confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
+if st.button("Re-index all files (force refresh)", disabled=not confirm_reindex, help="Re-indexing is a resource-intensive task that will re-process all documents."):
     st.info("Re-indexing knowledge base. Please wait...")
     with st.spinner("Re-indexing files..."):
         # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
