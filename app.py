@@ -21,6 +21,9 @@ if 'authenticated' not in st.session_state:
 
 def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
+    with st.form(key="login_form"):
+        pw = st.text_input("Enter password to access the SmartBot:", type="password")
+        if st.form_submit_button("Login"):
     with st.form("login_form"):
         pw = st.text_input("Enter password to access the SmartBot:", type="password")
         login_submit = st.form_submit_button("Login")
@@ -54,6 +57,12 @@ This bot only uses files you upload or that are present in this folder. No onlin
 
 # --- Admin Panel ---
 st.markdown("## 🛠️ Admin Panel")
+confirm_reindex = st.checkbox("I want to re-index the database (this takes a few moments)")
+if st.button(
+    "Re-index all files (force refresh)",
+    help="Clears the current database and re-processes all PDF and CSV files. Use this after manual file updates.",
+    disabled=not confirm_reindex
+):
 confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
 if st.button("Re-index all files (force refresh)", disabled=not confirm_reindex, help="Re-indexing is a resource-intensive task that will re-process all documents."):
     st.info("Re-indexing knowledge base. Please wait...")
@@ -159,6 +168,17 @@ if 'chat_history' not in st.session_state:
     st.session_state['chat_history'] = []
 
 st.markdown("## 💬 Ask a question")
+query = st.text_input(
+    "Enter your question:",
+    placeholder="e.g. Summarize the Q3 earnings call or compare BFS vs Sensex prices on Jan 2nd.",
+    key="query"
+)
+
+if st.button("Ask", help="Submit your question to the AI assistant.") or (query and st.session_state.get('last_query') != query):
+    if query:
+        with st.spinner("Searching transcripts and generating response..."):
+            answer, context = answer_query(query)
+        st.session_state['last_query'] = query
 # Optimized: Using st.form for better keyboard accessibility (Enter key) and batching updates
 with st.form(key="chat_form", clear_on_submit=False):
     query = st.text_input("Enter your question:", placeholder="e.g. What was the closing price of BFS on Jan 2, 2024?", key="query_input")
@@ -196,7 +216,8 @@ for i, chat in enumerate(reversed(st.session_state['chat_history'])):
             label="Download Answer & Context as Text",
             data=download_text,
             file_name=f"bfs_smartbot_answer_{i+1}.txt",
-            mime="text/plain"
+            mime="text/plain",
+            help="Download this specific answer and its supporting context as a text file for your records."
         )
     st.markdown("---")
 

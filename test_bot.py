@@ -12,6 +12,9 @@ TEST_QUERIES = [
 ]
 
 def run_tests():
+    # Mock Ollama call to avoid ConnectionError in CI environments
+    with patch('bot.ask_mistral_ollama') as mocked_ask:
+        mocked_ask.return_value = "This is a mocked response for CI testing."
     # Mock the Ollama API call to avoid connection errors in environments without a local Ollama server (e.g. CI)
     with patch('requests.post') as mock_post:
         mock_post.return_value.status_code = 200
