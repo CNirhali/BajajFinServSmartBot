@@ -1,4 +1,5 @@
 from bot import answer_query
+from unittest.mock import patch
 
 TEST_QUERIES = [
     "Summarize the key points from the Q1 FY25 earnings call.",
@@ -11,10 +12,13 @@ TEST_QUERIES = [
 ]
 
 def run_tests():
-    for q in TEST_QUERIES:
-        print(f"\n=== Query: {q}")
-        answer, context = answer_query(q)
-        print(f"Answer: {answer}\n---\nContext:\n{context}\n")
+    # Mock Ollama call to avoid ConnectionError in CI environments
+    with patch('bot.ask_mistral_ollama') as mocked_ask:
+        mocked_ask.return_value = "This is a mocked response for CI testing."
+        for q in TEST_QUERIES:
+            print(f"\n=== Query: {q}")
+            answer, context = answer_query(q)
+            print(f"Answer: {answer}\n---\nContext:\n{context}\n")
 
 if __name__ == '__main__':
     run_tests() 
