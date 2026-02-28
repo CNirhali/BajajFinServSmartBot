@@ -7,3 +7,7 @@
 
 **Learning:** Streamlit reruns the entire script on every interaction.
 **Action:** Use `@st.cache_data` for expensive data processing (like CSV parsing/merging) and `st.form` to batch user inputs and reduce unnecessary reruns.
+
+## 2025-02-17 - Parallelizing PDF Ingestion
+**Learning:** Sequential PDF parsing using `PyPDF2` is CPU-bound and becomes a bottleneck as the number of documents grows.
+**Action:** Use `concurrent.futures.ProcessPoolExecutor` to parallelize document parsing across multiple CPU cores to significantly reduce ingestion time.
