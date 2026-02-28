@@ -73,7 +73,10 @@ uploaded_files = st.file_uploader(
     key="file_uploader"
 )
 
-DATA_DIR = "."
+# SECURITY: Use a dedicated uploads directory to prevent overwriting app source code
+DATA_DIR = "uploads"
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
@@ -82,7 +85,7 @@ if uploaded_files:
         file_path = os.path.join(DATA_DIR, safe_filename)
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        st.success(f"Uploaded {uploaded_file.name}")
+        st.success(f"Uploaded {safe_filename}")
     st.info("Re-indexing knowledge base. Please wait...")
     with st.spinner("Re-indexing files..."):
         # Optimized: Call function directly and share embedding model
@@ -183,6 +186,7 @@ for i, chat in enumerate(reversed(st.session_state['chat_history'])):
         context_lines = chat['context'].split('\n')
         for line in context_lines:
             if line.startswith('Source:'):
+                # Using Streamlit's colored text instead of raw HTML for safety
                 st.markdown(f":blue[**{line}**]")
             else:
                 st.code(line, language=None)
