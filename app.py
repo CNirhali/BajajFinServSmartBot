@@ -1,5 +1,6 @@
 import streamlit as st
-from bot import answer_query
+import bot
+from data_ingest import run_ingestion
 import os
 import shutil
 import time
@@ -7,24 +8,29 @@ import io
 import pandas as pd
 
 # --- Simple Authentication ---
-# SECURITY: Use an environment variable for the password
+# Use environment variable for password to avoid hardcoded secrets
+# If not set, the app will require a password, but none will be valid by default
+# for better security in production.
 PASSWORD = os.getenv("BOT_PASSWORD")
 if not PASSWORD:
-    st.error("Missing BOT_PASSWORD environment variable. Please set it before running the app.")
+    st.error("⚠️ BOT_PASSWORD environment variable is not set. Access is disabled for security.")
     st.stop()
+
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
 def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
-    pw = st.text_input("Enter password to access the SmartBot:", type="password")
-    if st.button("Login"):
-        if pw == PASSWORD:
-            st.session_state['authenticated'] = True
-            st.success("Login successful! Reloading...")
-            st.rerun()
-        else:
-            st.error("Incorrect password. Please try again.")
+    with st.form("login_form"):
+        pw = st.text_input("Enter password to access the SmartBot:", type="password")
+        login_submit = st.form_submit_button("Login")
+        if login_submit:
+            if pw == PASSWORD:
+                st.session_state['authenticated'] = True
+                st.success("Login successful! Reloading...")
+                st.rerun()
+            else:
+                st.error("Incorrect password. Please try again.")
 
 if not st.session_state['authenticated']:
     login()
@@ -48,12 +54,12 @@ This bot only uses files you upload or that are present in this folder. No onlin
 
 # --- Admin Panel ---
 st.markdown("## 🛠️ Admin Panel")
-if st.button("Re-index all files (force refresh)"):
+confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
+if st.button("Re-index all files (force refresh)", disabled=not confirm_reindex, help="Re-indexing is a resource-intensive task that will re-process all documents."):
     st.info("Re-indexing knowledge base. Please wait...")
     with st.spinner("Re-indexing files..."):
-        import subprocess
-        subprocess.run(["python", "data_ingest.py"])  # Re-ingest all files
-        time.sleep(2)
+        # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
+        run_ingestion(model=bot.embedder)
     st.success("Re-indexing complete! You can now ask questions about the new files.")
 
 st.markdown("---")
@@ -67,14 +73,14 @@ uploaded_files = st.file_uploader(
     key="file_uploader"
 )
 
+# SECURITY: Use a dedicated uploads directory to prevent overwriting app source code
 DATA_DIR = "uploads"
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
-        # Use os.path.basename to prevent path traversal
-        # and ensure we save into a dedicated uploads directory
+        # Sanitize filename to prevent path traversal
         safe_filename = os.path.basename(uploaded_file.name)
         file_path = os.path.join(DATA_DIR, safe_filename)
         with open(file_path, "wb") as f:
@@ -82,19 +88,18 @@ if uploaded_files:
         st.success(f"Uploaded {safe_filename}")
     st.info("Re-indexing knowledge base. Please wait...")
     with st.spinner("Re-indexing files..."):
-        import subprocess
-        subprocess.run(["python", "data_ingest.py"])  # Re-ingest all files
-        time.sleep(2)
+        # Optimized: Call function directly and share embedding model
+        run_ingestion(model=bot.embedder)
     st.success("Re-indexing complete! You can now ask questions about the new files.")
 
 st.markdown("---")
 
 # --- Analytics Section ---
 st.markdown("## 📊 BFS & Sensex Price Trends")
-bfs_path = os.path.join(DATA_DIR, "BFS_Daily_Closing_Price.csv")
-sensex_path = os.path.join(DATA_DIR, "Sensex_Daily_Historical_Data.csv")
 
-if os.path.exists(bfs_path) and os.path.exists(sensex_path):
+@st.cache_data(show_spinner=False)
+def get_analytics_data(bfs_path, sensex_path):
+    """Cached function to process CSV data for analytics, improving UI responsiveness."""
     try:
         bfs_df = pd.read_csv(bfs_path)
         sensex_df = pd.read_csv(sensex_path)
@@ -103,9 +108,6 @@ if os.path.exists(bfs_path) and os.path.exists(sensex_path):
         bfs_df.columns = [c.strip() for c in bfs_df.columns]
         sensex_df.columns = [c.strip() for c in sensex_df.columns]
 
-        # Hard-coded to your actual column names after stripping:
-        # BFS: Date, Closing_Price
-        # Sensex: Date, Close
         bfs_df["Date"] = pd.to_datetime(bfs_df["Date"], errors="coerce")
         sensex_df["Date"] = pd.to_datetime(sensex_df["Date"], errors="coerce")
 
@@ -131,13 +133,22 @@ if os.path.exists(bfs_path) and os.path.exists(sensex_path):
 
         merged = merged.dropna(subset=["Date", "BFS Close", "Sensex Close"])
         merged = merged.sort_values("Date")
+        return merged
+    except Exception as e:
+        return e
 
+bfs_path = os.path.join(DATA_DIR, "BFS_Daily_Closing_Price.csv")
+sensex_path = os.path.join(DATA_DIR, "Sensex_Daily_Historical_Data.csv")
+
+if os.path.exists(bfs_path) and os.path.exists(sensex_path):
+    merged = get_analytics_data(bfs_path, sensex_path)
+    if isinstance(merged, pd.DataFrame):
         if not merged.empty:
             st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
         else:
             st.info("No overlapping, valid dates found between BFS and Sensex CSVs to plot.")
-    except Exception as e:
-        st.warning(f"Error loading/plotting price data: {e}")
+    else:
+        st.warning(f"Error loading/plotting price data: {merged}")
 else:
     st.info("Upload both BFS_Daily_Closing_Price.csv and Sensex_Daily_Historical_Data.csv to see price trends.")
 
@@ -148,13 +159,15 @@ if 'chat_history' not in st.session_state:
     st.session_state['chat_history'] = []
 
 st.markdown("## 💬 Ask a question")
-query = st.text_input("Enter your question:", placeholder="e.g. What was the closing price of BFS on Jan 2, 2024?", key="query")
+# Optimized: Using st.form for better keyboard accessibility (Enter key) and batching updates
+with st.form(key="chat_form", clear_on_submit=False):
+    query = st.text_input("Enter your question:", placeholder="e.g. What was the closing price of BFS on Jan 2, 2024?", key="query_input")
+    submit_button = st.form_submit_button(label="Ask")
 
-if st.button("Ask") or (query and st.session_state.get('last_query') != query):
+if submit_button:
     if query:
         with st.spinner("Thinking..."):
-            answer, context = answer_query(query)
-        st.session_state['last_query'] = query
+            answer, context = bot.answer_query(query)
         st.session_state['chat_history'].append({
             'query': query,
             'answer': answer,
@@ -169,7 +182,7 @@ for i, chat in enumerate(reversed(st.session_state['chat_history'])):
     st.markdown(f"**Q{i+1}:** {chat['query']}")
     st.markdown(f"**📝 Answer:** {chat['answer']}")
     with st.expander("Show context used for answer", expanded=False):
-        # Highlight source in context
+        # Highlight source in context using native markdown (avoids unsafe_allow_html)
         context_lines = chat['context'].split('\n')
         for line in context_lines:
             if line.startswith('Source:'):
@@ -187,6 +200,4 @@ for i, chat in enumerate(reversed(st.session_state['chat_history'])):
         )
     st.markdown("---")
 
-st.markdown("""
-:gray[Tip: Try complex queries like *'Summarize the key points from Q1 earnings call'*, *'Compare BFS and Sensex closing prices on the same day'*, or *'What guidance did management give for FY25?'*]
-""")
+st.info("💡 **Tip:** Try complex queries like *'Summarize the key points from Q1 earnings call'*, *'Compare BFS and Sensex closing prices on the same day'*, or *'What guidance did management give for FY25?'*")
