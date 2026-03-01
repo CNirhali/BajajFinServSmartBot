@@ -27,7 +27,8 @@ streamlit run app.py
 ```
 
 - Open [http://localhost:8501](http://localhost:8501) in your browser.
-- Login with the password (`bajajgpt2024` by default).
+- Set the `BOT_PASSWORD` environment variable to your desired password.
+- Login using the password you configured.
 
 ---
 
@@ -40,7 +41,7 @@ docker build -t bajajfinserv-smartbot .
 
 ### 2. Run the Docker container
 ```sh
-docker run -p 8501:8501 bajajfinserv-smartbot
+docker run -p 8501:8501 -e BOT_PASSWORD=your_password_here bajajfinserv-smartbot
 ```
 - Open [http://localhost:8501](http://localhost:8501) in your browser.
 

@@ -55,6 +55,7 @@ This bot only uses files you upload or that are present in this folder. No onlin
 # --- Admin Panel ---
 st.markdown("## 🛠️ Admin Panel")
 confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
+if st.button("Re-index all files (force refresh)", disabled=not confirm_reindex, help="Re-indexing is a resource-intensive task that will re-process all documents."):
 if st.button(
     "Re-index all files (force refresh)",
     disabled=not confirm_reindex,
@@ -139,8 +140,8 @@ def get_analytics_data(bfs_path, sensex_path):
         merged = merged.dropna(subset=["Date", "BFS Close", "Sensex Close"])
         merged = merged.sort_values("Date")
         return merged
-    except Exception as e:
-        return e
+    except Exception:
+        return "An error occurred while processing the financial data. Please ensure the CSV files are correctly formatted."
 
 bfs_path = os.path.join(DATA_DIR, "BFS_Daily_Closing_Price.csv")
 sensex_path = os.path.join(DATA_DIR, "Sensex_Daily_Historical_Data.csv")
@@ -153,7 +154,7 @@ if os.path.exists(bfs_path) and os.path.exists(sensex_path):
         else:
             st.info("No overlapping, valid dates found between BFS and Sensex CSVs to plot.")
     else:
-        st.warning(f"Error loading/plotting price data: {merged}")
+        st.warning(merged)
 else:
     st.info("Upload both BFS_Daily_Closing_Price.csv and Sensex_Daily_Historical_Data.csv to see price trends.")
 
@@ -164,6 +165,7 @@ if 'chat_history' not in st.session_state:
     st.session_state['chat_history'] = []
 
 st.markdown("## 💬 Ask a question")
+# Optimized: Using st.form for better keyboard accessibility (Enter key) and batching updates
 
 # Using st.form for better keyboard accessibility (Enter key)
 with st.form(key="chat_form", clear_on_submit=False):

@@ -13,3 +13,12 @@
 **Vulnerability:** Hardcoded password in source code and unsanitized file uploads allowing arbitrary file writes.
 **Learning:** Initial application development prioritized functionality over security, leading to the use of a hardcoded string for a simple login mechanism and direct use of user-provided filenames.
 **Prevention:** Use environment variables for sensitive configuration like passwords and always sanitize filenames using `os.path.basename()` or similar before using them in file operations. Additionally, avoid `unsafe_allow_html=True` in Streamlit to prevent potential XSS from untrusted data in the future.
+
+## 2025-05-15 - Information Leakage via Exceptions and Denial of Service (DoS) Prevention
+**Vulnerability:** Raw exception objects were returned to the frontend, and external API requests lacked timeouts.
+**Learning:**
+1. Returning raw exceptions can expose internal system details, such as file paths or library versions.
+2. Unbounded requests to external services (like Ollama) can lead to resource exhaustion if the service hangs.
+**Prevention:**
+1. Always catch exceptions and return user-friendly, generic error messages.
+2. Always implement reasonable timeouts for all external network requests.
