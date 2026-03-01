@@ -56,6 +56,11 @@ This bot only uses files you upload or that are present in this folder. No onlin
 st.markdown("## 🛠️ Admin Panel")
 confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
 if st.button("Re-index all files (force refresh)", disabled=not confirm_reindex, help="Re-indexing is a resource-intensive task that will re-process all documents."):
+if st.button(
+    "Re-index all files (force refresh)",
+    disabled=not confirm_reindex,
+    help="Re-indexing is a resource-intensive task that will re-process all documents."
+):
     st.info("Re-indexing knowledge base. Please wait...")
     with st.spinner("Re-indexing files..."):
         # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
@@ -70,7 +75,8 @@ uploaded_files = st.file_uploader(
     "Upload PDF or CSV files to add to the knowledge base:",
     type=["pdf", "csv"],
     accept_multiple_files=True,
-    key="file_uploader"
+    key="file_uploader",
+    help="You can upload multiple PDF transcripts or CSV price data files. They will be automatically indexed into the bot's memory."
 )
 
 # SECURITY: Use a dedicated uploads directory to prevent overwriting app source code
@@ -160,24 +166,42 @@ if 'chat_history' not in st.session_state:
 
 st.markdown("## 💬 Ask a question")
 # Optimized: Using st.form for better keyboard accessibility (Enter key) and batching updates
+
+# Using st.form for better keyboard accessibility (Enter key)
 with st.form(key="chat_form", clear_on_submit=False):
-    query = st.text_input("Enter your question:", placeholder="e.g. What was the closing price of BFS on Jan 2, 2024?", key="query_input")
-    submit_button = st.form_submit_button(label="Ask")
+    query = st.text_input(
+        "Enter your question:",
+        placeholder="e.g. What was the closing price of BFS on Jan 2, 2024?",
+        key="query_input"
+    )
+    submit_button = st.form_submit_button(
+        label="Ask",
+        help="Submit your question to the AI assistant. Press Enter to submit."
+    )
 
 if submit_button:
     if query:
-        with st.spinner("Thinking..."):
-            answer, context = bot.answer_query(query)
-        st.session_state['chat_history'].append({
-            'query': query,
-            'answer': answer,
-            'context': context
-        })
+        with st.spinner("Searching transcripts and generating response..."):
+            try:
+                answer, context = bot.answer_query(query)
+                st.session_state['chat_history'].append({
+                    'query': query,
+                    'answer': answer,
+                    'context': context
+                })
+            except Exception as e:
+                st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
     else:
         st.warning("Please enter a question.")
 
 # --- Chat History ---
 st.markdown("## 🗂️ Chat History")
+
+if st.session_state['chat_history']:
+    if st.button("🗑️ Clear Chat History", help="Delete all messages from the current session."):
+        st.session_state['chat_history'] = []
+        st.rerun()
+
 for i, chat in enumerate(reversed(st.session_state['chat_history'])):
     st.markdown(f"**Q{i+1}:** {chat['query']}")
     st.markdown(f"**📝 Answer:** {chat['answer']}")

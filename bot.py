@@ -15,6 +15,10 @@ embedder = SentenceTransformer(EMBED_MODEL)
 chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_DB_DIR))
 collection = chroma_client.get_or_create_collection(COLLECTION_NAME)
 
+# Use a global Session to enable connection pooling for Ollama API calls.
+# This reduces latency by reusing established TCP connections for consecutive requests.
+http_session = requests.Session()
+
 
 def retrieve_context(query, top_k=5):
     query_emb = embedder.encode([query]).tolist()[0]
@@ -45,6 +49,8 @@ Answer:
     }
     # Security: Added 30s timeout to prevent DoS via resource exhaustion if Ollama is unresponsive
     response = requests.post(OLLAMA_URL, json=payload, timeout=30)
+    # Using the shared http_session for connection pooling
+    response = http_session.post(OLLAMA_URL, json=payload)
     response.raise_for_status()
     return response.json().get('response', '').strip()
 
