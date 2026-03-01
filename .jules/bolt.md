@@ -11,3 +11,7 @@
 ## 2025-02-17 - Parallelizing PDF Ingestion
 **Learning:** Sequential PDF parsing using `PyPDF2` is CPU-bound and becomes a bottleneck as the number of documents grows.
 **Action:** Use `concurrent.futures.ProcessPoolExecutor` to parallelize document parsing across multiple CPU cores to significantly reduce ingestion time.
+
+## 2025-05-15 - Connection Pooling for API Calls
+**Learning:** Re-establishing TCP connections for every LLM API call (e.g., to Ollama) adds significant latency, especially in chat applications with multiple turns.
+**Action:** Use `requests.Session()` to enable connection pooling for consecutive API requests, reducing the overhead of repeated handshakes.
