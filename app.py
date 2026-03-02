@@ -2,6 +2,7 @@ import streamlit as st
 import bot
 from data_ingest import run_ingestion
 import os
+import secrets
 import shutil
 import time
 import io
@@ -25,7 +26,7 @@ def login():
         pw = st.text_input("Enter password to access the SmartBot:", type="password")
         login_submit = st.form_submit_button("Login", help="Verify credentials and enter the application.")
         if login_submit:
-            if pw == PASSWORD:
+            if secrets.compare_digest(pw, PASSWORD):
                 st.session_state['authenticated'] = True
                 st.success("Login successful! Reloading...")
                 st.rerun()
