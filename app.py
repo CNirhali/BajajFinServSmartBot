@@ -39,6 +39,9 @@ if not st.session_state['authenticated']:
 # --- Main App ---
 st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
+if 'indexed_files' not in st.session_state:
+    st.session_state['indexed_files'] = []
+
 st.markdown("""
 # 🤖 Bajaj Finserv SmartBot
 
@@ -55,7 +58,6 @@ This bot only uses files you upload or that are present in this folder. No onlin
 # --- Admin Panel ---
 st.markdown("## 🛠️ Admin Panel")
 confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
-if st.button("Re-index all files (force refresh)", disabled=not confirm_reindex, help="Re-indexing is a resource-intensive task that will re-process all documents."):
 if st.button(
     "Re-index all files (force refresh)",
     disabled=not confirm_reindex,
@@ -85,18 +87,24 @@ if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
 if uploaded_files:
-    for uploaded_file in uploaded_files:
-        # Sanitize filename to prevent path traversal
-        safe_filename = os.path.basename(uploaded_file.name)
-        file_path = os.path.join(DATA_DIR, safe_filename)
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        st.success(f"Uploaded {safe_filename}")
-    st.info("Re-indexing knowledge base. Please wait...")
-    with st.spinner("Re-indexing files..."):
-        # Optimized: Call function directly and share embedding model
-        run_ingestion(model=bot.embedder)
-    st.success("Re-indexing complete! You can now ask questions about the new files.")
+    # Optimized: Only re-index if the set of uploaded files has changed to prevent redundant processing.
+    current_filenames = sorted([f.name for f in uploaded_files])
+    if current_filenames != st.session_state['indexed_files']:
+        for uploaded_file in uploaded_files:
+            # Sanitize filename to prevent path traversal
+            safe_filename = os.path.basename(uploaded_file.name)
+            file_path = os.path.join(DATA_DIR, safe_filename)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            st.success(f"Uploaded {safe_filename}")
+
+        st.info("Re-indexing knowledge base. Please wait...")
+        with st.spinner("Re-indexing files..."):
+            # Optimized: Call function directly and share embedding model
+            run_ingestion(model=bot.embedder)
+
+        st.session_state['indexed_files'] = current_filenames
+        st.success("Re-indexing complete! You can now ask questions about the new files.")
 
 st.markdown("---")
 

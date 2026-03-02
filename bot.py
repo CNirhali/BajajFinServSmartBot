@@ -47,10 +47,9 @@ Answer:
         "prompt": prompt,
         "stream": False
     }
-    # Security: Added 30s timeout to prevent DoS via resource exhaustion if Ollama is unresponsive
-    response = requests.post(OLLAMA_URL, json=payload, timeout=30)
-    # Using the shared http_session for connection pooling
-    response = http_session.post(OLLAMA_URL, json=payload)
+    # Using the shared http_session for connection pooling.
+    # Security: Added 30s timeout to prevent DoS via resource exhaustion if Ollama is unresponsive.
+    response = http_session.post(OLLAMA_URL, json=payload, timeout=30)
     response.raise_for_status()
     return response.json().get('response', '').strip()
 
