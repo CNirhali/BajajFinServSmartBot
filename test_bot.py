@@ -12,6 +12,10 @@ TEST_QUERIES = [
 ]
 
 def run_tests():
+    # Mock the Ollama API call to avoid connection errors in environments without a local Ollama server (e.g. CI)
+    # Mock both requests.post and bot.http_session.post to cover all bases
+    with patch('requests.post') as mock_post, \
+         patch('bot.http_session.post') as mock_session_post:
     # Mock Ollama call to avoid ConnectionError in CI environments
     with patch('bot.ask_mistral_ollama') as mocked_ask:
         mocked_ask.return_value = "This is a mocked response for CI testing."
