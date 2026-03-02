@@ -72,6 +72,12 @@ def embed_and_store(chunks, model=None):
     chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_DB_DIR))
     collection = chroma_client.get_or_create_collection('bfs_smartbot')
 
+    # Security/Data Integrity: Clear existing collection before re-indexing to prevent
+    # stale data or duplicates.
+    existing_ids = collection.get()['ids']
+    if existing_ids:
+        collection.delete(ids=existing_ids)
+
     texts = [c['text'] for c in chunks]
     metadatas = [{'source': c['source']} for c in chunks]
 

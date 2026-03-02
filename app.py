@@ -2,6 +2,7 @@ import streamlit as st
 import bot
 from data_ingest import run_ingestion
 import os
+import secrets
 import shutil
 import time
 import io
@@ -25,7 +26,7 @@ def login():
         pw = st.text_input("Enter password to access the SmartBot:", type="password")
         login_submit = st.form_submit_button("Login")
         if login_submit:
-            if pw == PASSWORD:
+            if secrets.compare_digest(pw, PASSWORD):
                 st.session_state['authenticated'] = True
                 st.success("Login successful! Reloading...")
                 st.rerun()
@@ -55,7 +56,6 @@ This bot only uses files you upload or that are present in this folder. No onlin
 # --- Admin Panel ---
 st.markdown("## 🛠️ Admin Panel")
 confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
-if st.button("Re-index all files (force refresh)", disabled=not confirm_reindex, help="Re-indexing is a resource-intensive task that will re-process all documents."):
 if st.button(
     "Re-index all files (force refresh)",
     disabled=not confirm_reindex,
