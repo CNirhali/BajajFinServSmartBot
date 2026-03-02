@@ -23,7 +23,7 @@ def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
     with st.form("login_form"):
         pw = st.text_input("Enter password to access the SmartBot:", type="password")
-        login_submit = st.form_submit_button("Login")
+        login_submit = st.form_submit_button("Login", help="Verify credentials and enter the application.")
         if login_submit:
             if pw == PASSWORD:
                 st.session_state['authenticated'] = True
@@ -55,7 +55,6 @@ This bot only uses files you upload or that are present in this folder. No onlin
 # --- Admin Panel ---
 st.markdown("## 🛠️ Admin Panel")
 confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
-if st.button("Re-index all files (force refresh)", disabled=not confirm_reindex, help="Re-indexing is a resource-intensive task that will re-process all documents."):
 if st.button(
     "Re-index all files (force refresh)",
     disabled=not confirm_reindex,
@@ -66,6 +65,7 @@ if st.button(
         # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
         run_ingestion(model=bot.embedder)
     st.success("Re-indexing complete! You can now ask questions about the new files.")
+    st.toast("✅ Knowledge base re-indexed successfully!", icon="🚀")
 
 st.markdown("---")
 
@@ -97,6 +97,7 @@ if uploaded_files:
         # Optimized: Call function directly and share embedding model
         run_ingestion(model=bot.embedder)
     st.success("Re-indexing complete! You can now ask questions about the new files.")
+    st.toast("✅ Files uploaded and indexed successfully!", icon="📁")
 
 st.markdown("---")
 
@@ -189,6 +190,7 @@ if submit_button:
                     'answer': answer,
                     'context': context
                 })
+                st.toast("Response generated!", icon="💬")
             except Exception as e:
                 st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
     else:
@@ -197,32 +199,38 @@ if submit_button:
 # --- Chat History ---
 st.markdown("## 🗂️ Chat History")
 
-if st.session_state['chat_history']:
+if not st.session_state['chat_history']:
+    st.info("👋 No questions yet! Ask me anything about Bajaj Finserv earnings or market trends to get started.")
+else:
     if st.button("🗑️ Clear Chat History", help="Delete all messages from the current session."):
         st.session_state['chat_history'] = []
         st.rerun()
 
-for i, chat in enumerate(reversed(st.session_state['chat_history'])):
-    st.markdown(f"**Q{i+1}:** {chat['query']}")
-    st.markdown(f"**📝 Answer:** {chat['answer']}")
-    with st.expander("Show context used for answer", expanded=False):
-        # Highlight source in context using native markdown (avoids unsafe_allow_html)
-        context_lines = chat['context'].split('\n')
-        for line in context_lines:
-            if line.startswith('Source:'):
-                # Using Streamlit's colored text instead of raw HTML for safety
-                st.markdown(f":blue[**{line}**]")
-            else:
-                st.code(line, language=None)
-        # Download button for answer and context
-        download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{chat['context']}"
-        st.download_button(
-            label="Download Answer & Context as Text",
-            data=download_text,
-            file_name=f"bfs_smartbot_answer_{i+1}.txt",
-            mime="text/plain",
-            help="Download this specific answer and its supporting context as a text file for your records."
-        )
-    st.markdown("---")
+    for i, chat in enumerate(reversed(st.session_state['chat_history'])):
+        with st.chat_message("user"):
+            st.markdown(chat['query'])
+
+        with st.chat_message("assistant"):
+            st.markdown(chat['answer'])
+            with st.expander("Show context used for answer", expanded=False):
+                # Highlight source in context using native markdown (avoids unsafe_allow_html)
+                context_lines = chat['context'].split('\n')
+                for line in context_lines:
+                    if line.startswith('Source:'):
+                        # Using Streamlit's colored text instead of raw HTML for safety
+                        st.markdown(f":blue[**{line}**]")
+                    else:
+                        st.code(line, language=None)
+                # Download button for answer and context
+                download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{chat['context']}"
+                st.download_button(
+                    label="Download Answer & Context as Text",
+                    data=download_text,
+                    file_name=f"bfs_smartbot_answer_{i+1}.txt",
+                    mime="text/plain",
+                    key=f"download_{i}",
+                    help="Download this specific answer and its supporting context as a text file for your records."
+                )
+        st.markdown("---")
 
 st.info("💡 **Tip:** Try complex queries like *'Summarize the key points from Q1 earnings call'*, *'Compare BFS and Sensex closing prices on the same day'*, or *'What guidance did management give for FY25?'*")
