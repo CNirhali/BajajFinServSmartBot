@@ -16,6 +16,13 @@ def run_tests():
     # Mock both requests.post and bot.http_session.post to cover all bases
     with patch('requests.post') as mock_post, \
          patch('bot.http_session.post') as mock_session_post:
+    # Mock Ollama call to avoid ConnectionError in CI environments
+    with patch('bot.ask_mistral_ollama') as mocked_ask:
+        mocked_ask.return_value = "This is a mocked response for CI testing."
+
+    # Mock both requests.post and requests.Session.post to cover all bases
+    with patch('requests.post') as mock_post, \
+         patch('requests.Session.post') as mock_session_post:
 
         mock_response = mock_post.return_value
         mock_response.status_code = 200

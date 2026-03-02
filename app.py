@@ -39,6 +39,9 @@ if not st.session_state['authenticated']:
 # --- Main App ---
 st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
+if 'indexed_files' not in st.session_state:
+    st.session_state['indexed_files'] = []
+
 st.markdown("""
 # 🤖 Bajaj Finserv SmartBot
 
@@ -98,6 +101,24 @@ if uploaded_files:
         run_ingestion(model=bot.embedder)
     st.success("Re-indexing complete! You can now ask questions about the new files.")
     st.toast("✅ Files uploaded and indexed successfully!", icon="📁")
+    # Optimized: Only re-index if the set of uploaded files has changed to prevent redundant processing.
+    current_filenames = sorted([f.name for f in uploaded_files])
+    if current_filenames != st.session_state['indexed_files']:
+        for uploaded_file in uploaded_files:
+            # Sanitize filename to prevent path traversal
+            safe_filename = os.path.basename(uploaded_file.name)
+            file_path = os.path.join(DATA_DIR, safe_filename)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            st.success(f"Uploaded {safe_filename}")
+
+        st.info("Re-indexing knowledge base. Please wait...")
+        with st.spinner("Re-indexing files..."):
+            # Optimized: Call function directly and share embedding model
+            run_ingestion(model=bot.embedder)
+
+        st.session_state['indexed_files'] = current_filenames
+        st.success("Re-indexing complete! You can now ask questions about the new files.")
 
 st.markdown("---")
 
