@@ -64,11 +64,12 @@ if st.button(
     disabled=not confirm_reindex,
     help="Re-indexing is a resource-intensive task that will re-process all documents."
 ):
-    st.info("Re-indexing knowledge base. Please wait...")
-    with st.spinner("Re-indexing files..."):
+    with st.status("Re-indexing knowledge base...", expanded=True) as status:
+        st.write("Searching for documents...")
         # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
-        run_ingestion(model=bot.embedder)
-    st.success("Re-indexing complete! You can now ask questions about the new files.")
+        num_chunks = run_ingestion(model=bot.embedder)
+        st.write(f"Indexed {num_chunks} chunks.")
+        status.update(label="Re-indexing complete!", state="complete", expanded=False)
     st.toast("✅ Knowledge base re-indexed successfully!", icon="🚀")
 
 st.markdown("---")
@@ -89,19 +90,6 @@ if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
 if uploaded_files:
-    for uploaded_file in uploaded_files:
-        # Sanitize filename to prevent path traversal
-        safe_filename = os.path.basename(uploaded_file.name)
-        file_path = os.path.join(DATA_DIR, safe_filename)
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        st.success(f"Uploaded {safe_filename}")
-    st.info("Re-indexing knowledge base. Please wait...")
-    with st.spinner("Re-indexing files..."):
-        # Optimized: Call function directly and share embedding model
-        run_ingestion(model=bot.embedder)
-    st.success("Re-indexing complete! You can now ask questions about the new files.")
-    st.toast("✅ Files uploaded and indexed successfully!", icon="📁")
     # Optimized: Only re-index if the set of uploaded files has changed to prevent redundant processing.
     current_filenames = sorted([f.name for f in uploaded_files])
     if current_filenames != st.session_state['indexed_files']:
@@ -113,13 +101,15 @@ if uploaded_files:
                 f.write(uploaded_file.getbuffer())
             st.success(f"Uploaded {safe_filename}")
 
-        st.info("Re-indexing knowledge base. Please wait...")
-        with st.spinner("Re-indexing files..."):
+        with st.status("Indexing new files...", expanded=True) as status:
+            st.write("Processing uploads...")
             # Optimized: Call function directly and share embedding model
-            run_ingestion(model=bot.embedder)
+            num_chunks = run_ingestion(model=bot.embedder)
+            st.write(f"Indexed {num_chunks} chunks.")
+            status.update(label="Indexing complete!", state="complete", expanded=False)
 
         st.session_state['indexed_files'] = current_filenames
-        st.success("Re-indexing complete! You can now ask questions about the new files.")
+        st.toast("✅ Files uploaded and indexed successfully!", icon="📁")
 
 st.markdown("---")
 
@@ -166,10 +156,20 @@ def get_analytics_data(bfs_path, sensex_path):
     except Exception:
         return "An error occurred while processing the financial data. Please ensure the CSV files are correctly formatted."
 
-bfs_path = os.path.join(DATA_DIR, "BFS_Daily_Closing_Price.csv")
-sensex_path = os.path.join(DATA_DIR, "Sensex_Daily_Historical_Data.csv")
+def find_csv(filename):
+    """Checks both root and uploads directory for a CSV file."""
+    root_path = os.path.join(".", filename)
+    uploads_path = os.path.join(DATA_DIR, filename)
+    if os.path.exists(root_path):
+        return root_path
+    if os.path.exists(uploads_path):
+        return uploads_path
+    return None
 
-if os.path.exists(bfs_path) and os.path.exists(sensex_path):
+bfs_path = find_csv("BFS_Daily_Closing_Price.csv")
+sensex_path = find_csv("Sensex_Daily_Historical_Data.csv")
+
+if bfs_path and sensex_path:
     merged = get_analytics_data(bfs_path, sensex_path)
     if isinstance(merged, pd.DataFrame):
         if not merged.empty:
@@ -229,10 +229,10 @@ else:
         st.rerun()
 
     for i, chat in enumerate(reversed(st.session_state['chat_history'])):
-        with st.chat_message("user"):
+        with st.chat_message("user", avatar="👤"):
             st.markdown(chat['query'])
 
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar="🤖"):
             st.markdown(chat['answer'])
             with st.expander("Show context used for answer", expanded=False):
                 # Highlight source in context using native markdown (avoids unsafe_allow_html)
