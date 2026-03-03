@@ -11,10 +11,14 @@ from chromadb.utils import embedding_functions
 
 # Constants
 DATA_DIR = '.'
-PDF_GLOB = os.path.join(DATA_DIR, 'Earnings Call Transcript Q*.pdf')
-CSV_FILES = [
-    os.path.join(DATA_DIR, 'BFS_Daily_Closing_Price.csv'),
-    os.path.join(DATA_DIR, 'Sensex_Daily_Historical_Data.csv'),
+UPLOADS_DIR = 'uploads'
+PDF_GLOBS = [
+    os.path.join(DATA_DIR, '*.pdf'),
+    os.path.join(UPLOADS_DIR, '*.pdf'),
+]
+CSV_GLOBS = [
+    os.path.join(DATA_DIR, '*.csv'),
+    os.path.join(UPLOADS_DIR, '*.csv'),
 ]
 CHROMA_DB_DIR = './chroma_db'
 CHUNK_SIZE = 500  # characters
@@ -37,7 +41,10 @@ def parse_single_pdf(pdf_path):
 
 def parse_pdfs():
     """Parses and chunks multiple PDFs in parallel."""
-    pdf_paths = glob.glob(PDF_GLOB)
+    pdf_paths = []
+    for pattern in PDF_GLOBS:
+        pdf_paths.extend(glob.glob(pattern))
+
     pdf_chunks = []
     # Optimized: Use ProcessPoolExecutor to parallelize PDF parsing (~3x faster on 4-core CPU)
     with concurrent.futures.ProcessPoolExecutor() as executor:
@@ -49,8 +56,12 @@ def parse_pdfs():
 
 # 2. Load and chunk CSVs
 def parse_csvs():
+    csv_paths = []
+    for pattern in CSV_GLOBS:
+        csv_paths.extend(glob.glob(pattern))
+
     csv_chunks = []
-    for csv_path in CSV_FILES:
+    for csv_path in csv_paths:
         if os.path.exists(csv_path):
             df = pd.read_csv(csv_path)
             source = os.path.basename(csv_path)
