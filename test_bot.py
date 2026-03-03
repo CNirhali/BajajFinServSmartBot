@@ -19,10 +19,13 @@ def run_tests():
         mock_response = mock_post.return_value
         mock_response.status_code = 200
         mock_response.json.return_value = {
+    # Mock the Ollama API call to avoid connection errors in environments without a local Ollama server (e.g. CI)
+    # We mock 'bot.http_session.post' as bot.py uses a requests.Session() object.
+    with patch('bot.http_session.post') as mock_post:
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {
             'response': 'This is a mocked response for testing purposes.'
         }
-
-        mock_session_post.return_value = mock_response
 
         for q in TEST_QUERIES:
             print(f"\n=== Query: {q}")
