@@ -195,7 +195,8 @@ with st.form(key="chat_form", clear_on_submit=False):
     query = st.text_input(
         "Enter your question:",
         placeholder="e.g. What was the closing price of BFS on Jan 2, 2024?",
-        key="query_input"
+        key="query_input",
+        max_chars=1000
     )
     submit_button = st.form_submit_button(
         label="Ask",
