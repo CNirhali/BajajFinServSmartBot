@@ -16,3 +16,7 @@
 ## 2025-05-15 - [Delightful Chat with Avatars]
 **Learning:** Adding consistent avatars to chat messages significantly improves the visual hierarchy and personality of a chatbot interface, making it easier for users to distinguish between their inputs and the assistant's responses at a glance.
 **Action:** Always include appropriate avatars in `st.chat_message` to enhance user engagement and visual clarity.
+
+## 2025-05-15 - [Cohesive Context Rendering for Better Readability]
+**Learning:** Displaying RAG (Retrieval-Augmented Generation) context line-by-line in separate UI components (like `st.code` blocks) creates significant visual noise and fragmentation. Grouping context by source and rendering it in a single, cohesive block per source significantly improves readability and makes the interface feel more professional.
+**Action:** Group RAG context by source and render within a single cohesive component per source in the 'Show context' expander.

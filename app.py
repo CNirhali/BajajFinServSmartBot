@@ -236,14 +236,27 @@ else:
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(chat['answer'])
             with st.expander("Show context used for answer", expanded=False):
-                # Highlight source in context using native markdown (avoids unsafe_allow_html)
+                # Optimized: Group context by source for better readability
                 context_lines = chat['context'].split('\n')
+                current_source = None
+                current_content = []
+
                 for line in context_lines:
                     if line.startswith('Source:'):
-                        # Using Streamlit's colored text instead of raw HTML for safety
-                        st.markdown(f":blue[**{line}**]")
+                        # If we have accumulated content for a previous source, render it
+                        if current_source and current_content:
+                            st.markdown(f":blue[**{current_source}**]")
+                            st.code("\n".join(current_content), language=None)
+                            current_content = []
+                        current_source = line
                     else:
-                        st.code(line, language=None)
+                        if line.strip():
+                            current_content.append(line)
+
+                # Render the final source block
+                if current_source and current_content:
+                    st.markdown(f":blue[**{current_source}**]")
+                    st.code("\n".join(current_content), language=None)
                 # Download button for answer and context
                 download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{chat['context']}"
                 st.download_button(
