@@ -1,6 +1,5 @@
 import chromadb
 from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
 import requests
 import os
 
@@ -10,8 +9,20 @@ EMBED_MODEL = 'all-MiniLM-L6-v2'
 OLLAMA_URL = 'http://localhost:11434/api/generate'  # Default Ollama endpoint
 MISTRAL_MODEL = 'mistral'  # Change if your model name is different
 
-# Load embedding model and ChromaDB
-embedder = SentenceTransformer(EMBED_MODEL)
+# Lazy loading for embedding model to speed up initial import
+_embedder = None
+
+
+def get_embedder():
+    """Returns the pre-loaded embedding model, initializing it on first call."""
+    global _embedder
+    if _embedder is None:
+        from sentence_transformers import SentenceTransformer
+        _embedder = SentenceTransformer(EMBED_MODEL)
+    return _embedder
+
+
+# Load ChromaDB
 chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_DB_DIR))
 collection = chroma_client.get_or_create_collection(COLLECTION_NAME)
 
@@ -21,7 +32,7 @@ http_session = requests.Session()
 
 
 def retrieve_context(query, top_k=5):
-    query_emb = embedder.encode([query]).tolist()[0]
+    query_emb = get_embedder().encode([query]).tolist()[0]
     results = collection.query(query_embeddings=[query_emb], n_results=top_k)
     # results['documents'] is a list of lists (one per query)
     docs = results['documents'][0]
