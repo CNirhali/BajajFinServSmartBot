@@ -19,3 +19,7 @@
 ## 2025-05-16 - Eliminating Redundant Operations
 **Learning:** Redundant API calls (even to localhost) and redundant resource-intensive processing (like re-indexing) on every Streamlit rerun significantly degrade user experience and waste CPU/Network resources.
 **Action:** Use `st.session_state` to track the state of expensive operations (e.g., file indexing) and ensure that LLM API calls using connection pooling do not have redundant standalone `requests.post` calls preceding them.
+
+## 2025-05-17 - Lazy Loading Heavy ML Models
+**Learning:** Loading heavy ML models like `SentenceTransformer` at the module level causes a massive delay (e.g., ~17s) every time the module is imported. In Streamlit, which frequently reruns or can restart, this makes the app feel extremely sluggish.
+**Action:** Move heavy imports and model instantiation into a getter function (singleton pattern) to defer loading until the model is actually needed. This reduces initial import time significantly (from ~17s to ~1.6s).
