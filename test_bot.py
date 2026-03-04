@@ -12,13 +12,6 @@ TEST_QUERIES = [
 ]
 
 def run_tests():
-    # Mock both requests.post and requests.Session.post to cover all bases
-    with patch('requests.post') as mock_post, \
-         patch('requests.Session.post') as mock_session_post:
-
-        mock_response = mock_post.return_value
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
     # Mock the Ollama API call to avoid connection errors in environments without a local Ollama server (e.g. CI)
     # We mock 'bot.http_session.post' as bot.py uses a requests.Session() object.
     with patch('bot.http_session.post') as mock_post:
