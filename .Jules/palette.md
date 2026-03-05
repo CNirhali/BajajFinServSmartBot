@@ -20,3 +20,7 @@
 ## 2025-05-15 - [Cohesive Context Rendering for Better Readability]
 **Learning:** Displaying RAG (Retrieval-Augmented Generation) context line-by-line in separate UI components (like `st.code` blocks) creates significant visual noise and fragmentation. Grouping context by source and rendering it in a single, cohesive block per source significantly improves readability and makes the interface feel more professional.
 **Action:** Group RAG context by source and render within a single cohesive component per source in the 'Show context' expander.
+
+## 2025-05-16 - [Streamlit Configuration and Progressive Disclosure]
+**Learning:** `st.set_page_config` MUST be the first Streamlit command executed; if it's placed after other UI elements (like in a conditional login block), the app will error or fail to apply branding to the initial view. Additionally, using `st.expander` for administrative tools ("progressive disclosure") significantly reduces cognitive load for the average user while keeping high-impact actions accessible.
+**Action:** Always place `st.set_page_config` at the top of the main script and use `st.expander` to declutter the interface from secondary or expert-level controls.
