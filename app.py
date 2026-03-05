@@ -23,7 +23,9 @@ if 'authenticated' not in st.session_state:
 def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
     with st.form("login_form"):
-        pw = st.text_input("Enter password to access the SmartBot:", type="password")
+        # Security Enhancement: Added max_chars=128 to the password input field to mitigate
+        # potential Denial of Service (DoS) and resource exhaustion attacks.
+        pw = st.text_input("Enter password to access the SmartBot:", type="password", max_chars=128)
         login_submit = st.form_submit_button("Login", help="Verify credentials and enter the application.")
         if login_submit:
             if secrets.compare_digest(pw, PASSWORD):
