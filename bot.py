@@ -1,5 +1,3 @@
-import chromadb
-from chromadb.config import Settings
 import requests
 import os
 
@@ -9,8 +7,9 @@ EMBED_MODEL = 'all-MiniLM-L6-v2'
 OLLAMA_URL = 'http://localhost:11434/api/generate'  # Default Ollama endpoint
 MISTRAL_MODEL = 'mistral'  # Change if your model name is different
 
-# Lazy loading for embedding model to speed up initial import
+# Lazy loading for embedding model and ChromaDB to speed up initial import
 _embedder = None
+_collection = None
 
 
 def get_embedder():
@@ -22,9 +21,16 @@ def get_embedder():
     return _embedder
 
 
-# Load ChromaDB
-chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_DB_DIR))
-collection = chroma_client.get_or_create_collection(COLLECTION_NAME)
+def get_collection():
+    """Returns the ChromaDB collection, initializing the client on first call."""
+    global _collection
+    if _collection is None:
+        import chromadb
+        from chromadb.config import Settings
+        chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_DB_DIR))
+        _collection = chroma_client.get_or_create_collection(COLLECTION_NAME)
+    return _collection
+
 
 # Use a global Session to enable connection pooling for Ollama API calls.
 # This reduces latency by reusing established TCP connections for consecutive requests.
@@ -33,7 +39,7 @@ http_session = requests.Session()
 
 def retrieve_context(query, top_k=5):
     query_emb = get_embedder().encode([query]).tolist()[0]
-    results = collection.query(query_embeddings=[query_emb], n_results=top_k)
+    results = get_collection().query(query_embeddings=[query_emb], n_results=top_k)
     # results['documents'] is a list of lists (one per query)
     docs = results['documents'][0]
     metadatas = results['metadatas'][0]
@@ -83,4 +89,4 @@ if __name__ == '__main__':
         if user_query.lower() == 'exit':
             break
         answer, context = answer_query(user_query)
-        print(f"\nAnswer: {answer}\n\n---\nContext used:\n{context}\n") 
+        print(f"\nAnswer: {answer}\n\n---\nContext used:\n{context}\n")

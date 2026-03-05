@@ -2,12 +2,6 @@ import os
 import glob
 import json
 import concurrent.futures
-import pandas as pd
-from PyPDF2 import PdfReader
-from sentence_transformers import SentenceTransformer
-import chromadb
-from chromadb.config import Settings
-from chromadb.utils import embedding_functions
 
 # Constants
 DATA_DIR = '.'
@@ -27,6 +21,7 @@ CHUNK_OVERLAP = 100
 # 1. Load and chunk PDFs
 def parse_single_pdf(pdf_path):
     """Parses and chunks a single PDF file."""
+    from PyPDF2 import PdfReader
     chunks = []
     reader = PdfReader(pdf_path)
     text = " ".join(page.extract_text() or '' for page in reader.pages)
@@ -56,6 +51,7 @@ def parse_pdfs():
 
 # 2. Load and chunk CSVs
 def parse_csvs():
+    import pandas as pd
     csv_paths = []
     for pattern in CSV_GLOBS:
         csv_paths.extend(glob.glob(pattern))
@@ -76,6 +72,9 @@ def parse_csvs():
 
 # 3. Embed and store in ChromaDB
 def embed_and_store(chunks, model=None):
+    from sentence_transformers import SentenceTransformer
+    import chromadb
+    from chromadb.config import Settings
     # Reuse model if provided to save memory and initialization time (~5-10s)
     if model is None:
         model = SentenceTransformer('all-MiniLM-L6-v2')
