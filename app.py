@@ -8,6 +8,8 @@ import time
 import io
 import pandas as pd
 
+st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
+
 # --- Simple Authentication ---
 # Use environment variable for password to avoid hardcoded secrets
 # If not set, the app will require a password, but none will be valid by default
@@ -23,6 +25,17 @@ if 'authenticated' not in st.session_state:
 def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
     with st.form("login_form"):
+        pw = st.text_input(
+            "Enter password to access the SmartBot:",
+            type="password",
+            placeholder="Enter password...",
+            help="Please enter the access password provided by your administrator."
+        )
+        login_submit = st.form_submit_button(
+            "Login",
+            help="Verify credentials and enter the application.",
+            use_container_width=True
+        )
         # Security Enhancement: Added max_chars=128 to the password input field to mitigate
         # potential Denial of Service (DoS) and resource exhaustion attacks.
         pw = st.text_input("Enter password to access the SmartBot:", type="password", max_chars=128)
@@ -40,7 +53,6 @@ if not st.session_state['authenticated']:
     st.stop()
 
 # --- Main App ---
-st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
 if 'indexed_files' not in st.session_state:
     st.session_state['indexed_files'] = []
@@ -59,20 +71,22 @@ This bot only uses files you upload or that are present in this folder. No onlin
 """)
 
 # --- Admin Panel ---
-st.markdown("## 🛠️ Admin Panel")
-confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
-if st.button(
-    "Re-index all files (force refresh)",
-    disabled=not confirm_reindex,
-    help="Re-indexing is a resource-intensive task that will re-process all documents."
-):
-    with st.status("Re-indexing knowledge base...", expanded=True) as status:
-        st.write("Searching for documents...")
-        # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
-        num_chunks = run_ingestion(model=bot.get_embedder())
-        st.write(f"Indexed {num_chunks} chunks.")
-        status.update(label="Re-indexing complete!", state="complete", expanded=False)
-    st.toast("✅ Knowledge base re-indexed successfully!", icon="🚀")
+with st.expander("⚙️ System Administration"):
+    st.markdown("### 🛠️ Admin Panel")
+    confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
+    if st.button(
+        "Re-index all files (force refresh)",
+        disabled=not confirm_reindex,
+        help="Re-indexing is a resource-intensive task that will re-process all documents.",
+        use_container_width=True
+    ):
+        with st.status("Re-indexing knowledge base...", expanded=True) as status:
+            st.write("Searching for documents...")
+            # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
+            num_chunks = run_ingestion(model=bot.get_embedder())
+            st.write(f"Indexed {num_chunks} chunks.")
+            status.update(label="Re-indexing complete!", state="complete", expanded=False)
+        st.toast("✅ Knowledge base re-indexed successfully!", icon="🚀")
 
 st.markdown("---")
 
@@ -101,7 +115,6 @@ if uploaded_files:
             file_path = os.path.join(DATA_DIR, safe_filename)
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            st.success(f"Uploaded {safe_filename}")
 
         with st.status("Indexing new files...", expanded=True) as status:
             st.write("Processing uploads...")
@@ -129,8 +142,10 @@ def get_analytics_data(bfs_path, sensex_path):
         bfs_df.columns = [c.strip() for c in bfs_df.columns]
         sensex_df.columns = [c.strip() for c in sensex_df.columns]
 
-        bfs_df["Date"] = pd.to_datetime(bfs_df["Date"], errors="coerce")
-        sensex_df["Date"] = pd.to_datetime(sensex_df["Date"], errors="coerce")
+        # Explicitly specify date format to avoid warnings and ensure consistent parsing
+        date_format = "%d-%b-%y"
+        bfs_df["Date"] = pd.to_datetime(bfs_df["Date"], format=date_format, errors="coerce")
+        sensex_df["Date"] = pd.to_datetime(sensex_df["Date"], format=date_format, errors="coerce")
 
         # Clean BFS closing price: strip spaces, remove thousands commas, convert to float
         bfs_df["Closing_Price"] = (
@@ -225,7 +240,14 @@ if submit_button:
 st.markdown("## 🗂️ Chat History")
 
 if not st.session_state['chat_history']:
-    st.info("👋 No questions yet! Ask me anything about Bajaj Finserv earnings or market trends to get started.")
+    st.info("""
+    👋 **No questions yet!** Ask me anything about Bajaj Finserv earnings or market trends to get started.
+
+    💡 **Tip: Try asking something like:**
+    - *"Summarize the key points from Q1 earnings call"*
+    - *"Compare BFS and Sensex closing prices on the same day"*
+    - *"What guidance did management give for FY25?"*
+    """)
 else:
     if st.button("🗑️ Clear Chat History", help="Delete all messages from the current session."):
         st.session_state['chat_history'] = []
@@ -270,5 +292,3 @@ else:
                     help="Download this specific answer and its supporting context as a text file for your records."
                 )
         st.markdown("---")
-
-st.info("💡 **Tip:** Try complex queries like *'Summarize the key points from Q1 earnings call'*, *'Compare BFS and Sensex closing prices on the same day'*, or *'What guidance did management give for FY25?'*")

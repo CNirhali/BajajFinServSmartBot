@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+streamlit.log
+chroma_db/
+uploads/
+/home/jules/verification/
