@@ -23,3 +23,7 @@
 ## 2025-05-17 - Lazy Loading Heavy ML Models
 **Learning:** Loading heavy ML models like `SentenceTransformer` at the module level causes a massive delay (e.g., ~17s) every time the module is imported. In Streamlit, which frequently reruns or can restart, this makes the app feel extremely sluggish.
 **Action:** Move heavy imports and model instantiation into a getter function (singleton pattern) to defer loading until the model is actually needed. This reduces initial import time significantly (from ~17s to ~1.6s).
+
+## 2025-05-18 - Compounding Import Latency
+**Learning:** In a Streamlit environment, importing multiple modules that each have heavy dependencies (e.g., `pandas`, `chromadb`, `PyPDF2`) at the top level leads to compounding startup and rerun latency. Even if one module is optimized, others can still cause multi-second delays.
+**Action:** Apply lazy loading patterns across all utility modules (`bot.py`, `data_ingest.py`) to ensure the main `app.py` remains responsive. Moving all heavy imports into their respective usage scopes reduced the combined import time from ~9.5s to ~0.17s.
