@@ -44,15 +44,20 @@ def retrieve_context(query, top_k=5):
 
 
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
-    prompt = f"""
-You are a smart assistant for Bajaj Finserv. Use the following context to answer the user's question. If the answer is not in the context, say you don't know.
+    # Security: Basic sanitization to prevent prompt injection by escaping Mistral instruction tags
+    safe_query = query.replace("[/INST]", "[/ INST]")
+    safe_context = context.replace("[/INST]", "[/ INST]")
 
-Context:
-{context}
+    # Security Enhancement: Use Mistral-style [INST] tags and clear delimiters to help the model
+    # distinguish between instructions and data, mitigating prompt injection risks.
+    prompt = f"""[INST] You are a smart assistant for Bajaj Finserv. Use the following context to answer the user's question. If the answer is not in the context, say you don't know.
 
-Question: {query}
-Answer:
-"""
+### Context:
+{safe_context}
+
+### Question:
+{safe_query} [/INST]
+Answer:"""
     payload = {
         "model": model,
         "prompt": prompt,
