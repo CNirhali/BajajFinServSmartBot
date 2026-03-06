@@ -25,21 +25,20 @@ if 'authenticated' not in st.session_state:
 def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
     with st.form("login_form"):
+        # Security Enhancement: Added max_chars=128 to the password input field to mitigate
+        # potential Denial of Service (DoS) and resource exhaustion attacks.
         pw = st.text_input(
             "Enter password to access the SmartBot:",
             type="password",
             placeholder="Enter password...",
-            help="Please enter the access password provided by your administrator."
+            help="Please enter the access password provided by your administrator.",
+            max_chars=128
         )
         login_submit = st.form_submit_button(
             "Login",
             help="Verify credentials and enter the application.",
             use_container_width=True
         )
-        # Security Enhancement: Added max_chars=128 to the password input field to mitigate
-        # potential Denial of Service (DoS) and resource exhaustion attacks.
-        pw = st.text_input("Enter password to access the SmartBot:", type="password", max_chars=128)
-        login_submit = st.form_submit_button("Login", help="Verify credentials and enter the application.")
         if login_submit:
             if secrets.compare_digest(pw, PASSWORD):
                 st.session_state['authenticated'] = True
@@ -190,7 +189,22 @@ if bfs_path and sensex_path:
     merged = get_analytics_data(bfs_path, sensex_path)
     if isinstance(merged, pd.DataFrame):
         if not merged.empty:
-            st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
+            tab1, tab2 = st.tabs(["📈 Price Trend", "📊 Relative Performance"])
+
+            with tab1:
+                st.markdown("### Absolute Price Comparison")
+                st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
+                st.caption("Note: BFS and Sensex are on different scales, making BFS appear flat in this view.")
+
+            with tab2:
+                st.markdown("### Growth Performance (Indexed to 100)")
+                # Calculate relative performance indexed to 100 starting from the first data point
+                rel_merged = merged.copy()
+                rel_merged["BFS Growth"] = (rel_merged["BFS Close"] / rel_merged["BFS Close"].iloc[0]) * 100
+                rel_merged["Sensex Growth"] = (rel_merged["Sensex Close"] / rel_merged["Sensex Close"].iloc[0]) * 100
+
+                st.line_chart(rel_merged, x="Date", y=["BFS Growth", "Sensex Growth"])
+                st.info("This view shows the percentage growth of both entities starting from 100 on the earliest available date, allowing for a fair comparison of their performance.")
         else:
             st.info("No overlapping, valid dates found between BFS and Sensex CSVs to plot.")
     else:
