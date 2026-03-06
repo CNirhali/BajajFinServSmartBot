@@ -25,6 +25,7 @@ if 'authenticated' not in st.session_state:
 def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
     with st.form("login_form"):
+        # Security Enhancement: Added max_chars=128 to mitigate potential DoS/resource exhaustion attacks.
         # Security Enhancement: Added max_chars=128 to the password input field to mitigate
         # potential Denial of Service (DoS) and resource exhaustion attacks.
         pw = st.text_input(

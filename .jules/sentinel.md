@@ -22,3 +22,12 @@
 **Prevention:**
 1. Always catch exceptions and return user-friendly, generic error messages.
 2. Always implement reasonable timeouts for all external network requests.
+
+## 2025-05-15 - Redundant Auth UI and Incomplete Prompt Sanitization
+**Vulnerability:** Redundant password input fields in `app.py` (messy logic) and incomplete escaping of Mistral instruction tags in `bot.py`.
+**Learning:**
+1. Messy, redundant UI code in authentication flows can lead to "shadow" vulnerabilities where one input is secured but another is not.
+2. For instruction-tuned models like Mistral, escaping only the *closing* tag (`[/INST]`) is insufficient; an attacker can still inject new *opening* tags (`[INST]`) to start fresh instruction blocks that the model might prioritize over the original system instructions.
+**Prevention:**
+1. Consolidate authentication UI into a single, clean path and enforce strict length limits (`max_chars`).
+2. Always escape all structural markers of the LLM's template (both opening and closing tags) in user-provided content.
