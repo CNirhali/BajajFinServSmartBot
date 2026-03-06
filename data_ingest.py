@@ -61,13 +61,10 @@ def parse_csvs():
         if os.path.exists(csv_path):
             df = pd.read_csv(csv_path)
             source = os.path.basename(csv_path)
-            # Optimized: Use to_dict('records') instead of iterrows() for better performance
-            records = df.to_dict('records')
-            for record in records:
-                csv_chunks.append({
-                    'source': source,
-                    'text': json.dumps(record)
-                })
+            # Optimized: Use to_json(orient='records', lines=True) for vectorized serialization
+            # This is significantly faster than record-by-record iteration and manual json.dumps.
+            json_texts = df.to_json(orient='records', lines=True).splitlines()
+            csv_chunks.extend([{'source': source, 'text': jt} for jt in json_texts])
     return csv_chunks
 
 # 3. Embed and store in ChromaDB
@@ -84,15 +81,18 @@ def embed_and_store(chunks, model=None):
 
     # Security/Data Integrity: Clear existing collection before re-indexing to prevent
     # stale data or duplicates.
-    existing_ids = collection.get()['ids']
+    # Optimized: Use include=[] to avoid fetching documents and metadatas, reducing memory overhead.
+    existing_data = collection.get(include=[])
+    existing_ids = existing_data['ids']
     if existing_ids:
         collection.delete(ids=existing_ids)
 
     texts = [c['text'] for c in chunks]
     metadatas = [{'source': c['source']} for c in chunks]
 
-    # Batch encoding is more efficient than individual calls
-    embeddings = model.encode(texts, show_progress_bar=False).tolist()
+    # Batch encoding is more efficient than individual calls.
+    # Optimized: Set batch_size=128 to improve throughput on multi-core CPUs.
+    embeddings = model.encode(texts, batch_size=128, show_progress_bar=False).tolist()
 
     ids = [f"doc_{i}" for i in range(len(texts))]
     collection.add(documents=texts, embeddings=embeddings, metadatas=metadatas, ids=ids)
