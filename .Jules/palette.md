@@ -24,3 +24,7 @@
 ## 2025-05-16 - [Streamlit Configuration and Progressive Disclosure]
 **Learning:** `st.set_page_config` MUST be the first Streamlit command executed; if it's placed after other UI elements (like in a conditional login block), the app will error or fail to apply branding to the initial view. Additionally, using `st.expander` for administrative tools ("progressive disclosure") significantly reduces cognitive load for the average user while keeping high-impact actions accessible.
 **Action:** Always place `st.set_page_config` at the top of the main script and use `st.expander` to declutter the interface from secondary or expert-level controls.
+
+## 2025-05-17 - [Comparative Visualization with Disparate Scales]
+**Learning:** When comparing two datasets with vastly different absolute scales (e.g., a stock price vs. a market index), absolute charts make the smaller dataset appear flat and trendless. Utilizing a "Relative Performance" view (indexing both datasets to 100) provides a meaningful way for users to compare growth rates and performance at a glance.
+**Action:** Offer a "Relative Performance" view using `st.tabs` when visualizing financial or growth data with different scales.
