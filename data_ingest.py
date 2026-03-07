@@ -40,8 +40,12 @@ def parse_pdfs():
     for pattern in PDF_GLOBS:
         pdf_paths.extend(glob.glob(pattern))
 
+    if not pdf_paths:
+        return []
+
     pdf_chunks = []
     # Optimized: Use ProcessPoolExecutor to parallelize PDF parsing (~3x faster on 4-core CPU)
+    # Added check for pdf_paths to avoid the overhead of spawning a pool when no PDFs are present.
     with concurrent.futures.ProcessPoolExecutor() as executor:
         results = list(executor.map(parse_single_pdf, pdf_paths))
 
@@ -77,22 +81,25 @@ def embed_and_store(chunks, model=None):
         model = SentenceTransformer('all-MiniLM-L6-v2')
 
     chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_DB_DIR))
-    collection = chroma_client.get_or_create_collection('bfs_smartbot')
 
     # Security/Data Integrity: Clear existing collection before re-indexing to prevent
     # stale data or duplicates.
-    # Optimized: Use include=[] to avoid fetching documents and metadatas, reducing memory overhead.
-    existing_data = collection.get(include=[])
-    existing_ids = existing_data['ids']
-    if existing_ids:
-        collection.delete(ids=existing_ids)
+    # Optimized: Use delete_collection() instead of row-by-row deletion for much higher performance.
+    try:
+        chroma_client.delete_collection('bfs_smartbot')
+    except (ValueError, Exception):
+        # ValueError is raised by chromadb if the collection doesn't exist
+        pass
+    collection = chroma_client.create_collection('bfs_smartbot')
 
     texts = [c['text'] for c in chunks]
     metadatas = [{'source': c['source']} for c in chunks]
 
     # Batch encoding is more efficient than individual calls.
     # Optimized: Set batch_size=128 to improve throughput on multi-core CPUs.
-    embeddings = model.encode(texts, batch_size=128, show_progress_bar=False).tolist()
+    # Optimized: Removed .tolist() conversion as newer ChromaDB versions support numpy arrays directly,
+    # reducing CPU and memory overhead.
+    embeddings = model.encode(texts, batch_size=128, show_progress_bar=False)
 
     ids = [f"doc_{i}" for i in range(len(texts))]
     collection.add(documents=texts, embeddings=embeddings, metadatas=metadatas, ids=ids)

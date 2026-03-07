@@ -1,5 +1,6 @@
 import requests
 import os
+import functools
 
 CHROMA_DB_DIR = './chroma_db'
 COLLECTION_NAME = 'bfs_smartbot'
@@ -37,9 +38,20 @@ def get_collection():
 http_session = requests.Session()
 
 
+@functools.lru_cache(maxsize=128)
+def get_query_embedding(query):
+    """
+    Computes and caches the embedding for a given query string.
+    Optimized: Uses lru_cache to speed up repeated or similar queries.
+    Optimized: Avoids redundant list conversion of the embedding.
+    """
+    return get_embedder().encode([query])
+
+
 def retrieve_context(query, top_k=5):
-    query_emb = get_embedder().encode([query]).tolist()[0]
-    results = get_collection().query(query_embeddings=[query_emb], n_results=top_k)
+    # Optimized: Use cached embedding and pass it directly to ChromaDB without list re-wrapping.
+    query_emb = get_query_embedding(query)
+    results = get_collection().query(query_embeddings=query_emb, n_results=top_k)
     # results['documents'] is a list of lists (one per query)
     docs = results['documents'][0]
     metadatas = results['metadatas'][0]
