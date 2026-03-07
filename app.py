@@ -242,7 +242,8 @@ with st.form(key="chat_form", clear_on_submit=False):
     )
     submit_button = st.form_submit_button(
         label="Ask",
-        help="Submit your question to the AI assistant. Press Enter to submit."
+        help="Submit your question to the AI assistant. Press Enter to submit.",
+        use_container_width=True
     )
 
 if submit_button:
@@ -265,18 +266,36 @@ if submit_button:
 st.markdown("## 🗂️ Chat History")
 
 if not st.session_state['chat_history']:
-    st.info("""
-    👋 **No questions yet!** Ask me anything about Bajaj Finserv earnings or market trends to get started.
+    st.info("👋 **No questions yet!** Ask me anything about Bajaj Finserv earnings or market trends to get started.")
+    st.markdown("### 💡 Quick Start Suggestions")
 
-    💡 **Tip: Try asking something like:**
-    - *"Summarize the key points from Q1 earnings call"*
-    - *"Compare BFS and Sensex closing prices on the same day"*
-    - *"What guidance did management give for FY25?"*
-    """)
+    suggestions = [
+        "Summarize the key points from Q1 earnings call",
+        "Compare BFS and Sensex closing prices on the same day",
+        "What guidance did management give for FY25?"
+    ]
+
+    cols = st.columns(len(suggestions))
+    for i, suggestion in enumerate(suggestions):
+        if cols[i].button(suggestion, use_container_width=True):
+            with st.spinner(f"Generating response for: {suggestion}..."):
+                try:
+                    answer, context = bot.answer_query(suggestion)
+                    st.session_state['chat_history'].append({
+                        'query': suggestion,
+                        'answer': answer,
+                        'context': context
+                    })
+                    st.toast("Response generated!", icon="💬")
+                    st.rerun()
+                except Exception:
+                    st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
 else:
-    if st.button("🗑️ Clear Chat History", help="Delete all messages from the current session."):
-        st.session_state['chat_history'] = []
-        st.rerun()
+    with st.popover("🗑️ Clear Chat History", help="Delete all messages from the current session."):
+        st.warning("Are you sure you want to clear the entire chat history?")
+        if st.button("Yes, clear history", type="primary", use_container_width=True):
+            st.session_state['chat_history'] = []
+            st.rerun()
 
     for i, chat in enumerate(reversed(st.session_state['chat_history'])):
         with st.chat_message("user", avatar="👤"):
@@ -284,7 +303,10 @@ else:
 
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(chat['answer'])
-            with st.expander("Show context used for answer", expanded=False):
+
+            # Dynamically count unique sources for the expander label
+            source_count = len(set(line for line in chat['context'].split('\n') if line.startswith('Source:')))
+            with st.expander(f"🔍 Show context from {source_count} sources", expanded=False):
                 # Optimized: Group context by source for better readability
                 context_lines = chat['context'].split('\n')
                 current_source = None
