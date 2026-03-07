@@ -31,3 +31,8 @@
 **Prevention:**
 1. Consolidate authentication UI into a single, clean path and enforce strict length limits (`max_chars`).
 2. Always escape all structural markers of the LLM's template (both opening and closing tags) in user-provided content.
+
+## 2025-05-15 - Brute-Force Mitigation in Streamlit
+**Vulnerability:** Lack of rate limiting on the login form allowed for unlimited rapid-fire password guessing attempts.
+**Learning:** Streamlit applications are often targeted by brute-force attacks due to their interactive nature. Traditional backend rate limiting might be missing in simple deployments.
+**Prevention:** Implement session-based rate limiting using `st.session_state` to track and enforce a cooldown (e.g., 2 seconds) between sensitive actions like authentication attempts.

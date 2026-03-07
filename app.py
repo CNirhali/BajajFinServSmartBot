@@ -22,6 +22,9 @@ if not PASSWORD:
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
+if 'last_login_attempt' not in st.session_state:
+    st.session_state['last_login_attempt'] = 0.0
+
 def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
     with st.form("login_form"):
@@ -41,7 +44,14 @@ def login():
             use_container_width=True
         )
         if login_submit:
-            if secrets.compare_digest(pw, PASSWORD):
+            # Security Enhancement: Implement rate limiting on login attempts to mitigate brute-force attacks.
+            current_time = time.time()
+            time_since_last = current_time - st.session_state['last_login_attempt']
+            st.session_state['last_login_attempt'] = current_time
+
+            if time_since_last < 2.0:
+                st.warning(f"Too many attempts. Please wait {2.0 - time_since_last:.1f} seconds.")
+            elif secrets.compare_digest(pw, PASSWORD):
                 st.session_state['authenticated'] = True
                 st.success("Login successful! Reloading...")
                 st.rerun()
