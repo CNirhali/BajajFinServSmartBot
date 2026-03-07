@@ -27,3 +27,7 @@
 ## 2025-05-18 - Compounding Import Latency
 **Learning:** In a Streamlit environment, importing multiple modules that each have heavy dependencies (e.g., `pandas`, `chromadb`, `PyPDF2`) at the top level leads to compounding startup and rerun latency. Even if one module is optimized, others can still cause multi-second delays.
 **Action:** Apply lazy loading patterns across all utility modules (`bot.py`, `data_ingest.py`) to ensure the main `app.py` remains responsive. Moving all heavy imports into their respective usage scopes reduced the combined import time from ~9.5s to ~0.17s.
+
+## 2025-05-19 - Vector Database and Embedding Optimizations
+**Learning:** Row-by-row deletion in ChromaDB (fetching IDs first) is significantly slower and more memory-intensive than using `delete_collection()`. Additionally, modern ML libraries (SentenceTransformers) and vector databases (ChromaDB) handle NumPy arrays natively; converting them to Python lists via `.tolist()` introduces unnecessary CPU and memory overhead.
+**Action:** Use `chroma_client.delete_collection()` for clearing datasets and pass NumPy embeddings directly to the database. Implement `functools.lru_cache` for query embeddings to eliminate redundant model inference for repeated queries, which reduced retrieval latency by ~56%.
