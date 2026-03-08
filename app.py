@@ -94,6 +94,8 @@ with st.expander("⚙️ System Administration"):
             st.write("Searching for documents...")
             # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
             num_chunks = run_ingestion(model=bot.get_embedder())
+            # Optimized: Clear query and answer caches after re-indexing to ensure fresh results.
+            bot.clear_caches()
             st.write(f"Indexed {num_chunks} chunks.")
             status.update(label="Re-indexing complete!", state="complete", expanded=False)
         st.toast("✅ Knowledge base re-indexed successfully!", icon="🚀")
@@ -130,6 +132,8 @@ if uploaded_files:
             st.write("Processing uploads...")
             # Optimized: Call function directly and share embedding model
             num_chunks = run_ingestion(model=bot.get_embedder())
+            # Optimized: Clear query and answer caches after new data is added.
+            bot.clear_caches()
             st.write(f"Indexed {num_chunks} chunks.")
             status.update(label="Indexing complete!", state="complete", expanded=False)
 
