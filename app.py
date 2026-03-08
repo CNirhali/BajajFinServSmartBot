@@ -25,6 +25,9 @@ if 'authenticated' not in st.session_state:
 if 'last_login_attempt' not in st.session_state:
     st.session_state['last_login_attempt'] = 0.0
 
+if 'last_query_time' not in st.session_state:
+    st.session_state['last_query_time'] = 0.0
+
 def login():
     st.title("🔒 Bajaj Finserv SmartBot Login")
     with st.form("login_form"):
@@ -90,6 +93,8 @@ with st.expander("⚙️ System Administration"):
         help="Re-indexing is a resource-intensive task that will re-process all documents.",
         use_container_width=True
     ):
+        # Security: Audit logging for high-impact administrative actions
+        print(f"[AUDIT] Re-indexing triggered at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         with st.status("Re-indexing knowledge base...", expanded=True) as status:
             st.write("Searching for documents...")
             # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
@@ -248,17 +253,24 @@ with st.form(key="chat_form", clear_on_submit=False):
 
 if submit_button:
     if query:
-        with st.spinner("Searching transcripts and generating response..."):
-            try:
-                answer, context = bot.answer_query(query)
-                st.session_state['chat_history'].append({
-                    'query': query,
-                    'answer': answer,
-                    'context': context
-                })
-                st.toast("Response generated!", icon="💬")
-            except Exception as e:
-                st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
+        # Security Enhancement: Implement rate limiting on queries to prevent DoS/resource exhaustion.
+        current_time = time.time()
+        time_since_last = current_time - st.session_state['last_query_time']
+        if time_since_last < 3.0:
+            st.warning(f"Please wait {3.0 - time_since_last:.1f} seconds before asking another question.")
+        else:
+            st.session_state['last_query_time'] = current_time
+            with st.spinner("Searching transcripts and generating response..."):
+                try:
+                    answer, context = bot.answer_query(query)
+                    st.session_state['chat_history'].append({
+                        'query': query,
+                        'answer': answer,
+                        'context': context
+                    })
+                    st.toast("Response generated!", icon="💬")
+                except Exception as e:
+                    st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
     else:
         st.warning("Please enter a question.")
 
@@ -278,18 +290,25 @@ if not st.session_state['chat_history']:
     cols = st.columns(len(suggestions))
     for i, suggestion in enumerate(suggestions):
         if cols[i].button(suggestion, use_container_width=True):
-            with st.spinner(f"Generating response for: {suggestion}..."):
-                try:
-                    answer, context = bot.answer_query(suggestion)
-                    st.session_state['chat_history'].append({
-                        'query': suggestion,
-                        'answer': answer,
-                        'context': context
-                    })
-                    st.toast("Response generated!", icon="💬")
-                    st.rerun()
-                except Exception:
-                    st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
+            # Security Enhancement: Implement rate limiting on queries to prevent DoS/resource exhaustion.
+            current_time = time.time()
+            time_since_last = current_time - st.session_state['last_query_time']
+            if time_since_last < 3.0:
+                st.warning(f"Please wait {3.0 - time_since_last:.1f} seconds before asking another question.")
+            else:
+                st.session_state['last_query_time'] = current_time
+                with st.spinner(f"Generating response for: {suggestion}..."):
+                    try:
+                        answer, context = bot.answer_query(suggestion)
+                        st.session_state['chat_history'].append({
+                            'query': suggestion,
+                            'answer': answer,
+                            'context': context
+                        })
+                        st.toast("Response generated!", icon="💬")
+                        st.rerun()
+                    except Exception:
+                        st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
 else:
     with st.popover("🗑️ Clear Chat History", help="Delete all messages from the current session."):
         st.warning("Are you sure you want to clear the entire chat history?")
