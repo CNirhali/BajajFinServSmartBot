@@ -48,7 +48,12 @@ def get_query_embedding(query):
     return get_embedder().encode([query])
 
 
+@functools.lru_cache(maxsize=128)
 def retrieve_context(query, top_k=5):
+    """
+    Retrieves relevant context from ChromaDB and caches the result.
+    Optimized: Uses lru_cache to skip database queries for repeated inputs.
+    """
     # Optimized: Use cached embedding and pass it directly to ChromaDB without list re-wrapping.
     query_emb = get_query_embedding(query)
     results = get_collection().query(query_embeddings=query_emb, n_results=top_k)
@@ -89,10 +94,26 @@ Answer:"""
     return response.json().get('response', '').strip()
 
 
+@functools.lru_cache(maxsize=128)
 def answer_query(query, top_k=5):
+    """
+    Generates an answer for the query using RAG and caches the final response.
+    Optimized: Uses lru_cache to skip both retrieval and LLM calls for repeated questions.
+    """
     context = retrieve_context(query, top_k=top_k)
     answer = ask_mistral_ollama(query, context)
     return answer, context
+
+
+def clear_caches():
+    """
+    Clears all LRU caches for embeddings, retrieval, and answers.
+    Should be called whenever the underlying knowledge base is updated.
+    """
+    get_query_embedding.cache_clear()
+    retrieve_context.cache_clear()
+    answer_query.cache_clear()
+
 
 if __name__ == '__main__':
     while True:
