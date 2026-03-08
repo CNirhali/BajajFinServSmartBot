@@ -28,3 +28,7 @@
 ## 2025-05-17 - [Comparative Visualization with Disparate Scales]
 **Learning:** When comparing two datasets with vastly different absolute scales (e.g., a stock price vs. a market index), absolute charts make the smaller dataset appear flat and trendless. Utilizing a "Relative Performance" view (indexing both datasets to 100) provides a meaningful way for users to compare growth rates and performance at a glance.
 **Action:** Offer a "Relative Performance" view using `st.tabs` when visualizing financial or growth data with different scales.
+
+## 2025-05-18 - [Visibility of System Status in RAG Apps]
+**Learning:** In Retrieval-Augmented Generation (RAG) applications, users often feel uncertain about the "scope" of the AI's knowledge. Displaying dynamic counts of indexed documents (e.g., "Knowledge Base: 4 PDFs | 2 CSVs") in the header provides immediate visibility of system status and builds user trust.
+**Action:** Always provide a high-level summary of the indexed knowledge base scope in the main interface.
