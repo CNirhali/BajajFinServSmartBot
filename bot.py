@@ -39,21 +39,21 @@ http_session = requests.Session()
 
 
 @functools.lru_cache(maxsize=128)
+def _get_query_embedding_cached(query):
+    return get_embedder().encode([query])
+
+
 def get_query_embedding(query):
     """
     Computes and caches the embedding for a given query string.
     Optimized: Uses lru_cache to speed up repeated or similar queries.
-    Optimized: Avoids redundant list conversion of the embedding.
+    Optimized: Strips whitespace to improve cache hit rate.
     """
-    return get_embedder().encode([query])
+    return _get_query_embedding_cached(query.strip())
 
 
 @functools.lru_cache(maxsize=128)
-def retrieve_context(query, top_k=5):
-    """
-    Retrieves relevant context from ChromaDB and caches the result.
-    Optimized: Uses lru_cache to skip database queries for repeated inputs.
-    """
+def _retrieve_context_cached(query, top_k=5):
     # Optimized: Use cached embedding and pass it directly to ChromaDB without list re-wrapping.
     query_emb = get_query_embedding(query)
     results = get_collection().query(query_embeddings=query_emb, n_results=top_k)
@@ -64,6 +64,15 @@ def retrieve_context(query, top_k=5):
         f"Source: {meta['source']}\n{doc}" for doc, meta in zip(docs, metadatas)
     ])
     return context
+
+
+def retrieve_context(query, top_k=5):
+    """
+    Retrieves relevant context from ChromaDB and caches the result.
+    Optimized: Uses lru_cache to skip database queries for repeated inputs.
+    Optimized: Strips whitespace to improve cache hit rate.
+    """
+    return _retrieve_context_cached(query.strip(), top_k=top_k)
 
 
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
@@ -95,14 +104,19 @@ Answer:"""
 
 
 @functools.lru_cache(maxsize=128)
+def _answer_query_cached(query, top_k=5):
+    context = retrieve_context(query, top_k=top_k)
+    answer = ask_mistral_ollama(query, context)
+    return answer, context
+
+
 def answer_query(query, top_k=5):
     """
     Generates an answer for the query using RAG and caches the final response.
     Optimized: Uses lru_cache to skip both retrieval and LLM calls for repeated questions.
+    Optimized: Strips whitespace to improve cache hit rate.
     """
-    context = retrieve_context(query, top_k=top_k)
-    answer = ask_mistral_ollama(query, context)
-    return answer, context
+    return _answer_query_cached(query.strip(), top_k=top_k)
 
 
 def clear_caches():
@@ -110,9 +124,9 @@ def clear_caches():
     Clears all LRU caches for embeddings, retrieval, and answers.
     Should be called whenever the underlying knowledge base is updated.
     """
-    get_query_embedding.cache_clear()
-    retrieve_context.cache_clear()
-    answer_query.cache_clear()
+    _get_query_embedding_cached.cache_clear()
+    _retrieve_context_cached.cache_clear()
+    _answer_query_cached.cache_clear()
 
 
 if __name__ == '__main__':
