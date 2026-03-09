@@ -35,3 +35,7 @@
 ## 2025-05-20 - Multi-Level RAG Caching
 **Learning:** In RAG applications, the same or similar questions are often asked repeatedly (e.g., via "Quick Start" suggestions). Redundantly performing embedding, vector search, and LLM inference for these queries is a massive waste of resources and adds unnecessary latency.
 **Action:** Implement `functools.lru_cache` at multiple levels: query embedding, context retrieval, and the final LLM response. This reduces the latency of repeated queries from seconds to milliseconds (~0.005s). Always provide a `clear_caches()` mechanism and trigger it in the UI (e.g., `app.py`) whenever the underlying knowledge base is modified to ensure data consistency.
+
+## 2025-05-21 - CSV Chunk Aggregation and Cache Normalization
+**Learning:** Storing every CSV row as a separate vector in a RAG system leads to database bloat and inefficient retrieval. Grouping rows into larger chunks (e.g., ~500 chars) reduces the vector count by ~90% while providing better context for time-series queries. Additionally, LRU caches are sensitive to whitespace; normalizing queries with `.strip()` before caching significantly improves hit rates for user inputs.
+**Action:** Batch CSV rows into larger chunks during ingestion and wrap cached retrieval functions with query normalization logic.
