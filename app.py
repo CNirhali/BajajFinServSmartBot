@@ -10,6 +10,18 @@ import pandas as pd
 
 st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
+def get_document_counts():
+    """Counts the number of PDF and CSV files in the knowledge base."""
+    import glob
+    pdf_count = 0
+    csv_count = 0
+    # Match data_ingest.py patterns
+    for pattern in ["*.pdf", "uploads/*.pdf"]:
+        pdf_count += len(glob.glob(pattern))
+    for pattern in ["*.csv", "uploads/*.csv"]:
+        csv_count += len(glob.glob(pattern))
+    return pdf_count, csv_count
+
 # --- Simple Authentication ---
 # Use environment variable for password to avoid hardcoded secrets
 # If not set, the app will require a password, but none will be valid by default
@@ -42,7 +54,7 @@ def login():
             max_chars=128
         )
         login_submit = st.form_submit_button(
-            "Login",
+            "🔓 Login",
             help="Verify credentials and enter the application.",
             use_container_width=True
         )
@@ -70,8 +82,11 @@ if not st.session_state['authenticated']:
 if 'indexed_files' not in st.session_state:
     st.session_state['indexed_files'] = []
 
-st.markdown("""
+pdf_count, csv_count = get_document_counts()
+
+st.markdown(f"""
 # 🤖 Bajaj Finserv SmartBot
+**Knowledge Base:** :blue[{pdf_count} PDF Documents] | :green[{csv_count} CSV Data Files]
 
 Ask anything about the uploaded Earnings Call Transcripts, BFS, or Sensex data! 
 
@@ -250,7 +265,7 @@ with st.form(key="chat_form", clear_on_submit=False):
         max_chars=1000
     )
     submit_button = st.form_submit_button(
-        label="Ask",
+        label="💬 Ask Assistant",
         help="Submit your question to the AI assistant. Press Enter to submit.",
         use_container_width=True
     )
@@ -286,12 +301,26 @@ if not st.session_state['chat_history']:
     st.markdown("### 💡 Quick Start Suggestions")
 
     suggestions = [
-        "Summarize the key points from Q1 earnings call",
-        "Compare BFS and Sensex closing prices on the same day",
-        "What guidance did management give for FY25?"
+        ("📄 Summarize the key points from Q1 earnings call", "Summarize the key points from Q1 earnings call"),
+        ("📈 Compare BFS and Sensex prices", "Compare BFS and Sensex closing prices on the same day"),
+        ("🔮 What guidance was given for FY25?", "What guidance did management give for FY25?")
     ]
 
     cols = st.columns(len(suggestions))
+    for i, (label, suggestion) in enumerate(suggestions):
+        if cols[i].button(label, use_container_width=True):
+            with st.spinner(f"Generating response for: {suggestion}..."):
+                try:
+                    answer, context = bot.answer_query(suggestion)
+                    st.session_state['chat_history'].append({
+                        'query': suggestion,
+                        'answer': answer,
+                        'context': context
+                    })
+                    st.toast("Response generated!", icon="💬")
+                    st.rerun()
+                except Exception:
+                    st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
     for i, suggestion in enumerate(suggestions):
         if cols[i].button(suggestion, use_container_width=True):
             # Security Enhancement: Implement rate limiting on queries to prevent DoS/resource exhaustion.
@@ -354,7 +383,7 @@ else:
                 # Download button for answer and context
                 download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{chat['context']}"
                 st.download_button(
-                    label="Download Answer & Context as Text",
+                    label="📥 Download Answer & Context",
                     data=download_text,
                     file_name=f"bfs_smartbot_answer_{i+1}.txt",
                     mime="text/plain",
