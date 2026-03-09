@@ -1,6 +1,7 @@
 import requests
 import os
 import functools
+import re
 
 CHROMA_DB_DIR = './chroma_db'
 COLLECTION_NAME = 'bfs_smartbot'
@@ -39,16 +40,21 @@ http_session = requests.Session()
 
 
 @functools.lru_cache(maxsize=128)
+def _get_query_embedding_cached(query):
+    return get_embedder().encode([query])
+
+
 def get_query_embedding(query):
     """
     Computes and caches the embedding for a given query string.
     Optimized: Uses lru_cache to speed up repeated or similar queries.
-    Optimized: Avoids redundant list conversion of the embedding.
+    Optimized: Strips whitespace to improve cache hit rate.
     """
-    return get_embedder().encode([query])
+    return _get_query_embedding_cached(query.strip())
 
 
-def retrieve_context(query, top_k=5):
+@functools.lru_cache(maxsize=128)
+def _retrieve_context_cached(query, top_k=5):
     # Optimized: Use cached embedding and pass it directly to ChromaDB without list re-wrapping.
     query_emb = get_query_embedding(query)
     results = get_collection().query(query_embeddings=query_emb, n_results=top_k)
@@ -61,11 +67,38 @@ def retrieve_context(query, top_k=5):
     return context
 
 
+def retrieve_context(query, top_k=5):
+    """
+    Retrieves relevant context from ChromaDB and caches the result.
+    Optimized: Uses lru_cache to skip database queries for repeated inputs.
+    Optimized: Strips whitespace to improve cache hit rate.
+    """
+    return _retrieve_context_cached(query.strip(), top_k=top_k)
+
+
+def _sanitize_output(text):
+    """
+    Sanitizes LLM output to prevent data exfiltration via markdown image tags.
+    Neutralizes markdown image syntax: ![alt](url) -> [alt](url)
+    """
+    # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
+    # loading of external resources, which could be used to leak data via URL parameters.
+    return re.sub(r'!\[', '[', text)
+
+
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
     # Security: Sanitize input to prevent prompt injection by escaping Mistral instruction tags.
-    # We escape both [INST] and [/INST] to ensure the model distinguishes instructions from data.
-    safe_query = query.replace("[INST]", "[ INST]").replace("[/INST]", "[/ INST]")
-    safe_context = context.replace("[INST]", "[ INST]").replace("[/INST]", "[/ INST]")
+    # We escape both [INST] and [/INST] using case-insensitive regex to handle variations.
+    inst_pattern = re.compile(r'\[/?INST\]', re.IGNORECASE)
+
+    def escape_tag(match):
+        tag = match.group(0)
+        if tag.startswith('[/'):
+            return tag[:2] + " " + tag[2:]
+        return tag[:1] + " " + tag[1:]
+
+    safe_query = inst_pattern.sub(escape_tag, query)
+    safe_context = inst_pattern.sub(escape_tag, context)
 
     # Security Enhancement: Use Mistral-style [INST] tags and clear delimiters to help the model
     # distinguish between instructions and data, mitigating prompt injection risks.
@@ -86,13 +119,37 @@ Answer:"""
     # Using the shared http_session for connection pooling.
     response = http_session.post(OLLAMA_URL, json=payload, timeout=30)
     response.raise_for_status()
-    return response.json().get('response', '').strip()
+    raw_answer = response.json().get('response', '').strip()
+
+    # Security: Sanitize output to prevent exfiltration via markdown images
+    return _sanitize_output(raw_answer)
 
 
-def answer_query(query, top_k=5):
+@functools.lru_cache(maxsize=128)
+def _answer_query_cached(query, top_k=5):
     context = retrieve_context(query, top_k=top_k)
     answer = ask_mistral_ollama(query, context)
     return answer, context
+
+
+def answer_query(query, top_k=5):
+    """
+    Generates an answer for the query using RAG and caches the final response.
+    Optimized: Uses lru_cache to skip both retrieval and LLM calls for repeated questions.
+    Optimized: Strips whitespace to improve cache hit rate.
+    """
+    return _answer_query_cached(query.strip(), top_k=top_k)
+
+
+def clear_caches():
+    """
+    Clears all LRU caches for embeddings, retrieval, and answers.
+    Should be called whenever the underlying knowledge base is updated.
+    """
+    _get_query_embedding_cached.cache_clear()
+    _retrieve_context_cached.cache_clear()
+    _answer_query_cached.cache_clear()
+
 
 if __name__ == '__main__':
     while True:
