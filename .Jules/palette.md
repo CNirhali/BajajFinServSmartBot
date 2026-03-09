@@ -32,3 +32,7 @@
 ## 2025-05-18 - [Visibility of System Status in RAG Apps]
 **Learning:** In Retrieval-Augmented Generation (RAG) applications, users often feel uncertain about the "scope" of the AI's knowledge. Displaying dynamic counts of indexed documents (e.g., "Knowledge Base: 4 PDFs | 2 CSVs") in the header provides immediate visibility of system status and builds user trust.
 **Action:** Always provide a high-level summary of the indexed knowledge base scope in the main interface.
+
+## 2025-05-15 - [Consolidated Interactive Elements]
+**Learning:** Redundant loops for interactive elements (like Quick Start Suggestions) can lead to inconsistent behavior (missing tooltips or rate limits on some elements but not others) and increased maintenance overhead. Consolidating them ensures a uniform user experience and consistent security/performance measures (like rate limiting) across all similar actions.
+**Action:** Always check for repeated logic in UI component rendering and consolidate into single loops or reusable components to ensure parity in affordance (tooltips, icons) and logic (rate limits, error handling).
