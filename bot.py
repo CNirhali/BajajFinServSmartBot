@@ -1,6 +1,7 @@
 import requests
 import os
 import functools
+import re
 
 CHROMA_DB_DIR = './chroma_db'
 COLLECTION_NAME = 'bfs_smartbot'
@@ -75,11 +76,29 @@ def retrieve_context(query, top_k=5):
     return _retrieve_context_cached(query.strip(), top_k=top_k)
 
 
+def _sanitize_output(text):
+    """
+    Sanitizes LLM output to prevent data exfiltration via markdown image tags.
+    Neutralizes markdown image syntax: ![alt](url) -> [alt](url)
+    """
+    # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
+    # loading of external resources, which could be used to leak data via URL parameters.
+    return re.sub(r'!\[', '[', text)
+
+
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
     # Security: Sanitize input to prevent prompt injection by escaping Mistral instruction tags.
-    # We escape both [INST] and [/INST] to ensure the model distinguishes instructions from data.
-    safe_query = query.replace("[INST]", "[ INST]").replace("[/INST]", "[/ INST]")
-    safe_context = context.replace("[INST]", "[ INST]").replace("[/INST]", "[/ INST]")
+    # We escape both [INST] and [/INST] using case-insensitive regex to handle variations.
+    inst_pattern = re.compile(r'\[/?INST\]', re.IGNORECASE)
+
+    def escape_tag(match):
+        tag = match.group(0)
+        if tag.startswith('[/'):
+            return tag[:2] + " " + tag[2:]
+        return tag[:1] + " " + tag[1:]
+
+    safe_query = inst_pattern.sub(escape_tag, query)
+    safe_context = inst_pattern.sub(escape_tag, context)
 
     # Security Enhancement: Use Mistral-style [INST] tags and clear delimiters to help the model
     # distinguish between instructions and data, mitigating prompt injection risks.
@@ -100,7 +119,10 @@ Answer:"""
     # Using the shared http_session for connection pooling.
     response = http_session.post(OLLAMA_URL, json=payload, timeout=30)
     response.raise_for_status()
-    return response.json().get('response', '').strip()
+    raw_answer = response.json().get('response', '').strip()
+
+    # Security: Sanitize output to prevent exfiltration via markdown images
+    return _sanitize_output(raw_answer)
 
 
 @functools.lru_cache(maxsize=128)
