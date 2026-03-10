@@ -230,6 +230,14 @@ if bfs_path and sensex_path:
                 st.markdown("### Absolute Price Comparison")
                 st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
                 st.caption("Note: BFS and Sensex are on different scales, making BFS appear flat in this view.")
+                st.download_button(
+                    label="📥 Download Price Data (CSV)",
+                    data=merged.to_csv(index=False).encode('utf-8'),
+                    file_name="bfs_sensex_prices.csv",
+                    mime="text/csv",
+                    help="Download the absolute price data for BFS and Sensex as a CSV file.",
+                    use_container_width=True
+                )
 
             with tab2:
                 st.markdown("### Growth Performance (Indexed to 100)")
@@ -240,6 +248,14 @@ if bfs_path and sensex_path:
 
                 st.line_chart(rel_merged, x="Date", y=["BFS Growth", "Sensex Growth"])
                 st.info("This view shows the percentage growth of both entities starting from 100 on the earliest available date, allowing for a fair comparison of their performance.")
+                st.download_button(
+                    label="📥 Download Growth Data (CSV)",
+                    data=rel_merged.to_csv(index=False).encode('utf-8'),
+                    file_name="bfs_sensex_growth.csv",
+                    mime="text/csv",
+                    help="Download the relative growth performance data as a CSV file.",
+                    use_container_width=True
+                )
         else:
             st.info("No overlapping, valid dates found between BFS and Sensex CSVs to plot.")
     else:
@@ -308,26 +324,16 @@ if not st.session_state['chat_history']:
 
     cols = st.columns(len(suggestions))
     for i, (label, suggestion) in enumerate(suggestions):
-        if cols[i].button(label, use_container_width=True):
-            with st.spinner(f"Generating response for: {suggestion}..."):
-                try:
-                    answer, context = bot.answer_query(suggestion)
-                    st.session_state['chat_history'].append({
-                        'query': suggestion,
-                        'answer': answer,
-                        'context': context
-                    })
-                    st.toast("Response generated!", icon="💬")
-                    st.rerun()
-                except Exception:
-                    st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
-    for i, suggestion in enumerate(suggestions):
-        if cols[i].button(suggestion, use_container_width=True):
+        if cols[i].button(
+            label,
+            use_container_width=True,
+            help="Click to ask this question instantly."
+        ):
             # Security Enhancement: Implement rate limiting on queries to prevent DoS/resource exhaustion.
             current_time = time.time()
             time_since_last = current_time - st.session_state['last_query_time']
             if time_since_last < 3.0:
-                st.warning(f"Please wait {3.0 - time_since_last:.1f} seconds before asking another question.")
+                st.warning(f"Too many requests. Please wait {3.0 - time_since_last:.1f} seconds.")
             else:
                 st.session_state['last_query_time'] = current_time
                 with st.spinner(f"Generating response for: {suggestion}..."):
@@ -345,7 +351,7 @@ if not st.session_state['chat_history']:
 else:
     with st.popover("🗑️ Clear Chat History", help="Delete all messages from the current session."):
         st.warning("Are you sure you want to clear the entire chat history?")
-        if st.button("Yes, clear history", type="primary", use_container_width=True):
+        if st.button("🗑️ Yes, clear history", type="primary", use_container_width=True, help="Confirm deletion of all chat history."):
             st.session_state['chat_history'] = []
             st.rerun()
 
