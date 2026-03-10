@@ -141,12 +141,22 @@ if uploaded_files:
     # Optimized: Only re-index if the set of uploaded files has changed to prevent redundant processing.
     current_filenames = sorted([f.name for f in uploaded_files])
     if current_filenames != st.session_state['indexed_files']:
+        saved_filenames = []
         for uploaded_file in uploaded_files:
-            # Sanitize filename to prevent path traversal
+            # Security Enhancement: Robustly sanitize filename to prevent path traversal.
+            # os.path.basename() alone is insufficient if the filename is '..' or '.'
             safe_filename = os.path.basename(uploaded_file.name)
+            if safe_filename in [".", "..", ""]:
+                st.error(f"Skipping invalid filename: {uploaded_file.name}")
+                continue
+
             file_path = os.path.join(DATA_DIR, safe_filename)
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                saved_filenames.append(uploaded_file.name)
+            except Exception as e:
+                st.error(f"Error saving {uploaded_file.name}: {e}")
 
         with st.status("Indexing new files...", expanded=True) as status:
             st.write("Processing uploads...")
@@ -157,7 +167,7 @@ if uploaded_files:
             st.write(f"Indexed {num_chunks} chunks.")
             status.update(label="Indexing complete!", state="complete", expanded=False)
 
-        st.session_state['indexed_files'] = current_filenames
+        st.session_state['indexed_files'] = sorted(saved_filenames)
         st.toast("✅ Files uploaded and indexed successfully!", icon="📁")
 
 st.markdown("---")
