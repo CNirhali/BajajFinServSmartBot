@@ -86,6 +86,8 @@ pdf_count, csv_count = get_document_counts()
 
 st.markdown(f"""
 # 🤖 Bajaj Finserv SmartBot
+:grey[🟢 Assistant Ready]
+
 **Knowledge Base:** :blue[{pdf_count} PDF Documents] | :green[{csv_count} CSV Data Files]
 
 Ask anything about the uploaded Earnings Call Transcripts, BFS, or Sensex data! 
@@ -235,10 +237,24 @@ if bfs_path and sensex_path:
     merged = get_analytics_data(bfs_path, sensex_path)
     if isinstance(merged, pd.DataFrame):
         if not merged.empty:
+            # Calculate metrics for at-a-glance insights
+            latest_bfs = merged["BFS Close"].iloc[-1]
+            prev_bfs = merged["BFS Close"].iloc[-2] if len(merged) > 1 else latest_bfs
+            bfs_delta = latest_bfs - prev_bfs
+
+            latest_sensex = merged["Sensex Close"].iloc[-1]
+            prev_sensex = merged["Sensex Close"].iloc[-2] if len(merged) > 1 else latest_sensex
+            sensex_delta = latest_sensex - prev_sensex
+
+            latest_date = merged["Date"].iloc[-1].strftime("%b %d, %Y")
+
             tab1, tab2 = st.tabs(["📈 Price Trend", "📊 Relative Performance"])
 
             with tab1:
-                st.markdown("### Absolute Price Comparison")
+                st.markdown(f"### Absolute Price Comparison (as of {latest_date})")
+                m1, m2 = st.columns(2)
+                m1.metric("Latest BFS Close", f"₹{latest_bfs:,.2f}", f"{bfs_delta:+,.2f}")
+                m2.metric("Latest Sensex Close", f"{latest_sensex:,.2f}", f"{sensex_delta:+,.2f}")
                 st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
                 st.caption("Note: BFS and Sensex are on different scales, making BFS appear flat in this view.")
                 st.download_button(
@@ -254,8 +270,16 @@ if bfs_path and sensex_path:
                 st.markdown("### Growth Performance (Indexed to 100)")
                 # Calculate relative performance indexed to 100 starting from the first data point
                 rel_merged = merged.copy()
-                rel_merged["BFS Growth"] = (rel_merged["BFS Close"] / rel_merged["BFS Close"].iloc[0]) * 100
-                rel_merged["Sensex Growth"] = (rel_merged["Sensex Close"] / rel_merged["Sensex Close"].iloc[0]) * 100
+                bfs_base = rel_merged["BFS Close"].iloc[0]
+                sensex_base = rel_merged["Sensex Close"].iloc[0]
+                rel_merged["BFS Growth"] = (rel_merged["BFS Close"] / bfs_base) * 100
+                rel_merged["Sensex Growth"] = (rel_merged["Sensex Close"] / sensex_base) * 100
+
+                g1, g2 = st.columns(2)
+                bfs_total_pct = ((latest_bfs / bfs_base) - 1) * 100
+                sensex_total_pct = ((latest_sensex / sensex_base) - 1) * 100
+                g1.metric("Total BFS Growth", f"{bfs_total_pct:+.1f}%", help="Overall percentage growth since the start of the dataset.")
+                g2.metric("Total Sensex Growth", f"{sensex_total_pct:+.1f}%", help="Overall percentage growth since the start of the dataset.")
 
                 st.line_chart(rel_merged, x="Date", y=["BFS Growth", "Sensex Growth"])
                 st.info("This view shows the percentage growth of both entities starting from 100 on the earliest available date, allowing for a fair comparison of their performance.")
@@ -373,9 +397,18 @@ else:
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(chat['answer'])
 
-            # Dynamically count unique sources for the expander label
-            source_count = len(set(line for line in chat['context'].split('\n') if line.startswith('Source:')))
-            with st.expander(f"🔍 Show context from {source_count} sources", expanded=False):
+            # Dynamically extract and format unique source names for the expander label
+            sources = sorted(list(set(line.replace('Source:', '').strip() for line in chat['context'].split('\n') if line.startswith('Source:'))))
+            source_names = ", ".join(sources)
+            # Truncate source names if they are too long for the label
+            if len(source_names) > 60:
+                source_names = source_names[:57] + "..."
+
+            expander_label = f"🔍 Show context from {len(sources)} sources"
+            if sources:
+                expander_label += f": {source_names}"
+
+            with st.expander(expander_label, expanded=False):
                 # Optimized: Group context by source for better readability
                 context_lines = chat['context'].split('\n')
                 current_source = None
