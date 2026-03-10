@@ -112,8 +112,9 @@ with st.expander("⚙️ System Administration"):
         print(f"[AUDIT] Re-indexing triggered at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         with st.status("Re-indexing knowledge base...", expanded=True) as status:
             st.write("Searching for documents...")
-            # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time
-            num_chunks = run_ingestion(model=bot.get_embedder())
+            # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time.
+            # Optimized: Explicitly pass force=True to perform a full re-index as requested by the user.
+            num_chunks = run_ingestion(model=bot.get_embedder(), force=True)
             # Optimized: Clear query and answer caches after re-indexing to ensure fresh results.
             bot.clear_caches()
             st.write(f"Indexed {num_chunks} chunks.")

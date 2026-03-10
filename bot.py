@@ -34,6 +34,22 @@ def get_collection():
     return _collection
 
 
+def get_indexed_sources():
+    """
+    Returns a set of unique source filenames currently present in the ChromaDB collection.
+    Optimized: Enables incremental indexing by identifying already processed files.
+    """
+    try:
+        # Fetch metadatas to extract source filenames.
+        # Include=['metadatas'] avoids fetching large document texts or embeddings.
+        results = get_collection().get(include=['metadatas'])
+        if results and results['metadatas']:
+            return set(meta['source'] for meta in results['metadatas'])
+    except Exception:
+        pass
+    return set()
+
+
 # Use a global Session to enable connection pooling for Ollama API calls.
 # This reduces latency by reusing established TCP connections for consecutive requests.
 http_session = requests.Session()
