@@ -43,3 +43,7 @@
 ## 2025-05-22 - Incremental Indexing for RAG
 **Learning:** Re-indexing an entire knowledge base for every change is an $O(N)$ operation that becomes a major bottleneck as the dataset grows. Ingestion time for even small datasets can exceed 30 seconds due to embedding generation.
 **Action:** Implement incremental indexing by: 1) Using stable IDs (`filename_index`); 2) Identifying new vs already-indexed files by querying database metadata; 3) Using `collection.upsert()` for updates; and 4) Deleting stale records for files no longer on disk. This reduces ingestion time for unchanged datasets from ~30s to ~0.06s (~99% speedup).
+
+## 2025-05-23 - Batch Operations in ChromaDB
+**Learning:** Performing deletions in a loop for multiple sources is inefficient and creates unnecessary database round-trips. ChromaDB's `delete` method supports complex filters, allowing for batch operations.
+**Action:** Use the `$in` operator in the `where` clause (e.g., `where={"source": {"$in": list(stale_sources)}}`) to delete multiple sources in a single call, improving cleanup performance during incremental indexing.

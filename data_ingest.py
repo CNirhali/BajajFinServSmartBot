@@ -194,10 +194,8 @@ def run_ingestion(model=None, force=False):
     # 1. Handle stale files: Remove from index if not on disk
     stale_sources = indexed_sources - disk_sources
     if stale_sources:
-        collection = bot.get_collection()
-        for source in stale_sources:
-            # Delete all chunks associated with this source
-            collection.delete(where={"source": source})
+        # Optimized: Use a single batch delete with $in operator to remove all stale sources at once.
+        bot.get_collection().delete(where={"source": {"$in": list(stale_sources)}})
 
     # 2. Handle new files: Only process files not in index
     new_pdfs = [p for p in disk_pdfs if os.path.basename(p) not in indexed_sources]
