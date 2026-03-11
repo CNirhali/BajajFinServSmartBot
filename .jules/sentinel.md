@@ -36,3 +36,12 @@
 **Vulnerability:** Lack of rate limiting on the login form allowed for unlimited rapid-fire password guessing attempts.
 **Learning:** Streamlit applications are often targeted by brute-force attacks due to their interactive nature. Traditional backend rate limiting might be missing in simple deployments.
 **Prevention:** Implement session-based rate limiting using `st.session_state` to track and enforce a cooldown (e.g., 2 seconds) between sensitive actions like authentication attempts.
+
+## 2026-03-11 - [Defense-in-Depth for LLM Output and Exception Masking]
+**Vulnerability:** Potential XSS via LLM-generated `javascript:` links and information leakage via unhandled Streamlit exceptions.
+**Learning:**
+1. LLMs can be manipulated to generate malicious markdown links using the `javascript:` protocol. Neutralizing this protocol case-insensitively (`re.IGNORECASE`) is a necessary layer of defense.
+2. Streamlit's default behavior is to show raw exception traces in the UI, which leaks internal system state. Catching all top-level exceptions in interactive components and replacing them with generic messages is essential for production security.
+**Prevention:**
+1. Always sanitize LLM output for known XSS vectors like `javascript:` and `data:` URI schemes.
+2. Implement global or component-level try-except blocks in Streamlit that log the raw error to server stdout but show a safe message to the user.

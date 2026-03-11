@@ -94,12 +94,18 @@ def retrieve_context(query, top_k=5):
 
 def _sanitize_output(text):
     """
-    Sanitizes LLM output to prevent data exfiltration via markdown image tags.
-    Neutralizes markdown image syntax: ![alt](url) -> [alt](url)
+    Sanitizes LLM output to prevent data exfiltration via markdown image tags
+    and XSS via malicious javascript: links.
     """
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
-    return re.sub(r'!\[', '[', text)
+    text = re.sub(r'!\[', '[', text)
+
+    # Security Enhancement: Neutralizing 'javascript:' protocol in links to prevent XSS.
+    # It replaces 'javascript:' with 'blocked-js:' (case-insensitive).
+    text = re.sub(r'javascript:', 'blocked-js:', text, flags=re.IGNORECASE)
+
+    return text
 
 
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):

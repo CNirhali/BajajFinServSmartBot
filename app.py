@@ -67,10 +67,14 @@ def login():
             if time_since_last < 2.0:
                 st.warning(f"Too many attempts. Please wait {2.0 - time_since_last:.1f} seconds.")
             elif secrets.compare_digest(pw, PASSWORD):
+                # Security: Audit logging for successful login
+                print(f"[AUDIT] Successful login at {time.strftime('%Y-%m-%d %H:%M:%S')}")
                 st.session_state['authenticated'] = True
                 st.success("Login successful! Reloading...")
                 st.rerun()
             else:
+                # Security: Audit logging for failed login
+                print(f"[AUDIT] Failed login attempt at {time.strftime('%Y-%m-%d %H:%M:%S')}")
                 st.error("Incorrect password. Please try again.")
 
 if not st.session_state['authenticated']:
@@ -112,15 +116,21 @@ with st.expander("⚙️ System Administration"):
     ):
         # Security: Audit logging for high-impact administrative actions
         print(f"[AUDIT] Re-indexing triggered at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        with st.status("Re-indexing knowledge base...", expanded=True) as status:
-            st.write("Searching for documents...")
-            # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time.
-            # Optimized: Explicitly pass force=True to perform a full re-index as requested by the user.
-            num_chunks = run_ingestion(model=bot.get_embedder(), force=True)
-            # Optimized: Clear query and answer caches after re-indexing to ensure fresh results.
-            bot.clear_caches()
-            st.write(f"Indexed {num_chunks} chunks.")
-            status.update(label="Re-indexing complete!", state="complete", expanded=False)
+        try:
+            with st.status("Re-indexing knowledge base...", expanded=True) as status:
+                st.write("Searching for documents...")
+                # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time.
+                # Optimized: Explicitly pass force=True to perform a full re-index as requested by the user.
+                num_chunks = run_ingestion(model=bot.get_embedder(), force=True)
+                # Optimized: Clear query and answer caches after re-indexing to ensure fresh results.
+                bot.clear_caches()
+                st.write(f"Indexed {num_chunks} chunks.")
+                status.update(label="Re-indexing complete!", state="complete", expanded=False)
+        except Exception as e:
+            # Security: Mask raw exception details and log to server
+            print(f"[ERROR] Re-indexing failed: {e}")
+            st.error("⚠️ Re-indexing failed. Please check the server logs or contact your administrator.")
+            st.stop()
         st.toast("✅ Knowledge base re-indexed successfully!", icon="🚀")
 
 st.markdown("---")
@@ -146,6 +156,12 @@ if uploaded_files:
     if current_filenames != st.session_state['indexed_files']:
         saved_filenames = []
         for uploaded_file in uploaded_files:
+            # Security Enhancement: Limit file size to 10MB to prevent DoS.
+            MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+            if uploaded_file.size > MAX_FILE_SIZE:
+                st.error(f"Skipping {uploaded_file.name}: File exceeds 10MB limit.")
+                continue
+
             # Security Enhancement: Robustly sanitize filename to prevent path traversal.
             # os.path.basename() alone is insufficient if the filename is '..' or '.'
             safe_filename = os.path.basename(uploaded_file.name)
@@ -159,16 +175,24 @@ if uploaded_files:
                     f.write(uploaded_file.getbuffer())
                 saved_filenames.append(uploaded_file.name)
             except Exception as e:
-                st.error(f"Error saving {uploaded_file.name}: {e}")
+                # Security: Mask raw exception details in the UI and log to server
+                print(f"[ERROR] Failed to save {uploaded_file.name}: {e}")
+                st.error(f"Error saving {uploaded_file.name}. Please contact your administrator.")
 
-        with st.status("Indexing new files...", expanded=True) as status:
-            st.write("Processing uploads...")
-            # Optimized: Call function directly and share embedding model
-            num_chunks = run_ingestion(model=bot.get_embedder())
-            # Optimized: Clear query and answer caches after new data is added.
-            bot.clear_caches()
-            st.write(f"Indexed {num_chunks} chunks.")
-            status.update(label="Indexing complete!", state="complete", expanded=False)
+        try:
+            with st.status("Indexing new files...", expanded=True) as status:
+                st.write("Processing uploads...")
+                # Optimized: Call function directly and share embedding model
+                num_chunks = run_ingestion(model=bot.get_embedder())
+                # Optimized: Clear query and answer caches after new data is added.
+                bot.clear_caches()
+                st.write(f"Indexed {num_chunks} chunks.")
+                status.update(label="Indexing complete!", state="complete", expanded=False)
+        except Exception as e:
+            # Security: Mask raw exception details and log to server
+            print(f"[ERROR] Ingestion failed: {e}")
+            st.error("⚠️ Ingestion of new files failed. Please check the server logs.")
+            st.stop()
 
         st.session_state['indexed_files'] = sorted(saved_filenames)
         st.toast("✅ Files uploaded and indexed successfully!", icon="📁")
@@ -340,6 +364,8 @@ if submit_button:
                     })
                     st.toast("Response generated!", icon="💬")
                 except Exception as e:
+                    # Security: Mask raw exception details and log to server
+                    print(f"[ERROR] Chat query failed: {e}")
                     st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
     else:
         st.warning("Please enter a question.")
@@ -381,7 +407,9 @@ if not st.session_state['chat_history']:
                         })
                         st.toast("Response generated!", icon="💬")
                         st.rerun()
-                    except Exception:
+                    except Exception as e:
+                        # Security: Mask raw exception details and log to server
+                        print(f"[ERROR] Quick start suggestion failed: {e}")
                         st.error("⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running.")
 else:
     with st.popover("🗑️ Clear Chat History", help="Delete all messages from the current session."):
