@@ -272,7 +272,7 @@ if bfs_path and sensex_path:
 
             latest_date = merged["Date"].iloc[-1].strftime("%b %d, %Y")
 
-            tab1, tab2 = st.tabs(["📈 Price Trend", "📊 Relative Performance"])
+            tab1, tab2, tab3 = st.tabs(["📈 Price Trend", "📊 Relative Performance", "🗂️ Data Table"])
 
             with tab1:
                 st.markdown(f"### Absolute Price Comparison (as of {latest_date})")
@@ -315,6 +315,20 @@ if bfs_path and sensex_path:
                     help="Download the relative growth performance data as a CSV file.",
                     use_container_width=True
                 )
+
+            with tab3:
+                st.markdown("### Underlying Price Data")
+                st.dataframe(
+                    merged,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Date": st.column_config.DateColumn("Date", format="DD MMM YYYY"),
+                        "BFS Close": st.column_config.NumberColumn("BFS Close (₹)", format="₹%.2f"),
+                        "Sensex Close": st.column_config.NumberColumn("Sensex Close", format="%.2f")
+                    }
+                )
+                st.caption("This table provides the exact values used in the visualizations above for accessibility and detailed inspection.")
         else:
             st.info("No overlapping, valid dates found between BFS and Sensex CSVs to plot.")
     else:
