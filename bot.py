@@ -97,15 +97,16 @@ def retrieve_context(query, top_k=5):
 def _sanitize_output(text):
     """
     Sanitizes LLM output to prevent data exfiltration via markdown image tags
-    and XSS via malicious javascript: links.
+    and XSS via malicious URI protocols (javascript:, vbscript:, data:).
     """
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
     text = re.sub(r'!\[', '[', text)
 
-    # Security Enhancement: Neutralizing 'javascript:' protocol in links to prevent XSS.
-    # It replaces 'javascript:' with 'blocked-js:' (case-insensitive).
-    text = re.sub(r'javascript:', 'blocked-js:', text, flags=re.IGNORECASE)
+    # Security Enhancement: Neutralizing malicious protocols in links to prevent XSS.
+    # It handles javascript:, vbscript:, and data: protocols, including those with
+    # whitespace between the protocol name and the colon.
+    text = re.sub(r'(javascript|vbscript|data)\s*:', r'blocked-\1:', text, flags=re.IGNORECASE)
 
     return text
 
