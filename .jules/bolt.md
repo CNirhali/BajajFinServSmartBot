@@ -47,3 +47,10 @@
 ## 2025-05-23 - Batch Operations in ChromaDB
 **Learning:** Performing deletions in a loop for multiple sources is inefficient and creates unnecessary database round-trips. ChromaDB's `delete` method supports complex filters, allowing for batch operations.
 **Action:** Use the `$in` operator in the `where` clause (e.g., `where={"source": {"$in": list(stale_sources)}}`) to delete multiple sources in a single call, improving cleanup performance during incremental indexing.
+
+## 2025-05-24 - Optimized Source Discovery and Client Reuse
+**Learning:** Retrieving all metadatas in ChromaDB just to find unique source names is extremely slow ($O(N)$ data transfer). Since chunks use a stable `filename_index` ID format, fetching only IDs (`include=[]`) and parsing them is ~22x faster (e.g., ~0.11s vs ~0.005s) as it avoids deserializing metadata JSON for every chunk.
+**Action:** Use `include=[]` in `collection.get()` for source discovery and parse filenames from IDs.
+
+**Learning:** Initializing separate ChromaDB clients in different modules (e.g., `bot.py` and `data_ingest.py`) creates redundant connection overhead and can lead to persistence issues or "database locked" errors in some environments.
+**Action:** Centralize client and collection access in a single getter (e.g., `bot.get_collection()`) and reuse it across the application. Use `chromadb.PersistentClient` for faster, more reliable persistence in modern ChromaDB.

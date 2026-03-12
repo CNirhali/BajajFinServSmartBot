@@ -121,23 +121,23 @@ def embed_and_store(chunks, model=None, force=False):
     Optimized: Added 'force' flag to allow a complete refresh of the knowledge base.
     """
     from sentence_transformers import SentenceTransformer
-    import chromadb
-    from chromadb.config import Settings
+    import bot
     # Reuse model if provided to save memory and initialization time (~5-10s)
     if model is None:
         model = SentenceTransformer('all-MiniLM-L6-v2')
-
-    chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_DB_DIR))
 
     if force:
         # Security/Data Integrity: Clear existing collection if 'force' is True.
         # Optimized: Use delete_collection() instead of row-by-row deletion for much higher performance.
         try:
-            chroma_client.delete_collection('bfs_smartbot')
-        except (ValueError, Exception):
+            # Optimized: Access the client via bot.get_collection()._client to reuse the existing connection.
+            collection = bot.get_collection()
+            collection._client.delete_collection(bot.COLLECTION_NAME)
+        except (AttributeError, ValueError, Exception):
             pass
 
-    collection = chroma_client.get_or_create_collection('bfs_smartbot')
+    # Optimized: Reuse the collection initialized in bot.py to eliminate redundant connection overhead.
+    collection = bot.get_collection()
 
     texts = [c['text'] for c in chunks]
     metadatas = [{'source': c['source']} for c in chunks]
@@ -162,9 +162,10 @@ def embed_and_store(chunks, model=None, force=False):
     collection.upsert(documents=texts, embeddings=embeddings, metadatas=metadatas, ids=ids)
 
     # Safely handle persist() which is deprecated/no-op in newer chromadb versions
-    if hasattr(chroma_client, 'persist'):
+    client = collection._client
+    if hasattr(client, 'persist'):
         try:
-            chroma_client.persist()
+            client.persist()
         except (AttributeError, NotImplementedError):
             pass
 
