@@ -10,17 +10,22 @@ import pandas as pd
 
 st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
-def get_document_counts():
-    """Counts the number of PDF and CSV files in the knowledge base."""
+def get_knowledge_base_details():
+    """Counts and lists the PDF and CSV files in the knowledge base."""
     import glob
-    pdf_count = 0
-    csv_count = 0
+    pdf_files = []
+    csv_files = []
     # Match data_ingest.py patterns
     for pattern in ["*.pdf", "uploads/*.pdf"]:
-        pdf_count += len(glob.glob(pattern))
+        pdf_files.extend([os.path.basename(f) for f in glob.glob(pattern)])
     for pattern in ["*.csv", "uploads/*.csv"]:
-        csv_count += len(glob.glob(pattern))
-    return pdf_count, csv_count
+        csv_files.extend([os.path.basename(f) for f in glob.glob(pattern)])
+
+    # Deduplicate and sort
+    pdf_files = sorted(set(pdf_files))
+    csv_files = sorted(set(csv_files))
+
+    return len(pdf_files), len(csv_files), pdf_files, csv_files
 
 # --- Simple Authentication ---
 # Use environment variable for password to avoid hardcoded secrets
@@ -50,7 +55,7 @@ def login():
             "Enter password to access the SmartBot:",
             type="password",
             placeholder="Enter password...",
-            help="Please enter the access password provided by your administrator.",
+            help="Please enter the access password provided by your administrator. Press Enter to login.",
             max_chars=128
         )
         login_submit = st.form_submit_button(
@@ -71,6 +76,7 @@ def login():
                 print(f"[AUDIT] Successful login at {time.strftime('%Y-%m-%d %H:%M:%S')}")
                 st.session_state['authenticated'] = True
                 st.success("Login successful! Reloading...")
+                time.sleep(0.5)
                 st.rerun()
             else:
                 # Security: Audit logging for failed login
@@ -86,18 +92,33 @@ if not st.session_state['authenticated']:
 if 'indexed_files' not in st.session_state:
     st.session_state['indexed_files'] = []
 
-pdf_count, csv_count = get_document_counts()
+pdf_count, csv_count, pdf_files, csv_files = get_knowledge_base_details()
 
-st.markdown(f"""
-# 🤖 Bajaj Finserv SmartBot
-:grey[🟢 Assistant Ready]
+st.markdown("# 🤖 Bajaj Finserv SmartBot")
 
-**Knowledge Base:** :blue[{pdf_count} PDF Documents] | :green[{csv_count} CSV Data Files]
+h1, h2 = st.columns([0.7, 0.3])
+with h1:
+    st.markdown(f"""
+    :grey[🟢 Assistant Ready]
 
-Ask anything about the uploaded Earnings Call Transcripts, BFS, or Sensex data! 
+    **Knowledge Base:** :blue[{pdf_count} PDF Documents] | :green[{csv_count} CSV Data Files]
 
-*Powered by Mistral LLM (Ollama) + Smart Retrieval.*
-""")
+    Ask anything about the uploaded Earnings Call Transcripts, BFS, or Sensex data!
+    """)
+with h2:
+    with st.popover("📂 View indexed files", help="Click to see a detailed list of all documents and data files currently in the knowledge base.", width="stretch"):
+        st.markdown("### 🗂️ Indexed Files")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(f"**📄 PDFs ({pdf_count})**")
+            for f in pdf_files:
+                st.caption(f"- {f}")
+        with c2:
+            st.markdown(f"**📊 CSVs ({csv_count})**")
+            for f in csv_files:
+                st.caption(f"- {f}")
+
+st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 
 st.info("""
 **Privacy Notice:**
@@ -142,7 +163,7 @@ uploaded_files = st.file_uploader(
     type=["pdf", "csv"],
     accept_multiple_files=True,
     key="file_uploader",
-    help="You can upload multiple PDF transcripts or CSV price data files. They will be automatically indexed into the bot's memory."
+    help="You can upload multiple PDF transcripts or CSV price data files (max 10MB per file). They will be automatically indexed into the bot's memory."
 )
 
 # SECURITY: Use a dedicated uploads directory to prevent overwriting app source code
