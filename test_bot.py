@@ -14,7 +14,16 @@ TEST_QUERIES = [
 def run_tests():
     # Mock the Ollama API call to avoid connection errors in environments without a local Ollama server (e.g. CI)
     # We mock 'bot.http_session.post' as bot.py uses a requests.Session() object.
-    with patch('bot.http_session.post') as mock_post:
+    with patch('bot.http_session.post') as mock_post, \
+         patch('bot.get_embedder') as mock_embedder, \
+         patch('bot.get_collection') as mock_collection:
+
+        mock_embedder.return_value.encode.return_value = [[0.1] * 384]
+        mock_collection.return_value.query.return_value = {
+            'documents': [['Mocked context']],
+            'metadatas': [[{'source': 'mocked.pdf'}]]
+        }
+
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
             'response': 'This is a mocked response for testing purposes.'

