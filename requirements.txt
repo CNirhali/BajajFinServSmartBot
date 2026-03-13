@@ -5,4 +5,4 @@ chromadb
 sentence-transformers
 ollama
 requests
-scikit-learn 
+scikit-learn
