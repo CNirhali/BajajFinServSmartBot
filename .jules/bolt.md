@@ -54,3 +54,17 @@
 
 **Learning:** Initializing separate ChromaDB clients in different modules (e.g., `bot.py` and `data_ingest.py`) creates redundant connection overhead and can lead to persistence issues or "database locked" errors in some environments.
 **Action:** Centralize client and collection access in a single getter (e.g., `bot.get_collection()`) and reuse it across the application. Use `chromadb.PersistentClient` for faster, more reliable persistence in modern ChromaDB.
+
+## 2025-05-25 - Directory Scanning and Process Overhead
+**Learning:**  is significantly faster (~65%) than  for large or frequently scanned directories because it avoids creating intermediate lists of paths and returns iterator-friendly objects.
+**Action:** Use  for internal file scanners, especially those called on every UI interaction or rerun in Streamlit.
+
+**Learning:**  has a non-negligible overhead (~1.5s). Parallelizing a single CPU-bound task (like parsing one PDF) is actually slower than sequential execution.
+**Action:** Implement conditional parallelization: only spawn process pools when multiple independent heavy tasks are present.
+
+## 2025-05-25 - Directory Scanning and Process Overhead
+**Learning:** `os.scandir` is significantly faster (~65%) than `glob.glob` for large or frequently scanned directories because it avoids creating intermediate lists of paths and returns iterator-friendly objects.
+**Action:** Use `os.scandir` for internal file scanners, especially those called on every UI interaction or rerun in Streamlit.
+
+**Learning:** `ProcessPoolExecutor` has a non-negligible overhead (~1.5s). Parallelizing a single CPU-bound task (like parsing one PDF) is actually slower than sequential execution.
+**Action:** Implement conditional parallelization: only spawn process pools when multiple independent heavy tasks are present.

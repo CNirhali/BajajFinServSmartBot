@@ -1,6 +1,6 @@
 import streamlit as st
 import bot
-from data_ingest import run_ingestion
+import data_ingest
 import os
 import secrets
 import shutil
@@ -10,6 +10,17 @@ import pandas as pd
 
 st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
+@st.cache_data(show_spinner=False)
+def get_knowledge_base_details():
+    """
+    Counts and lists the PDF and CSV files in the knowledge base.
+    Optimized: Uses the centralized get_knowledge_base_files scanner and caches results
+    to minimize disk I/O on every Streamlit rerun.
+    """
+    disk_pdfs, disk_csvs = data_ingest.get_knowledge_base_files()
+
+    pdf_files = sorted(set(os.path.basename(p) for p in disk_pdfs))
+    csv_files = sorted(set(os.path.basename(p) for p in disk_csvs))
 
 def get_knowledge_base_details():
     """Counts and lists the PDF and CSV files in the knowledge base."""
@@ -202,9 +213,11 @@ with st.expander("⚙️ System Administration"):
                 st.write("Searching for documents...")
                 # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time.
                 # Optimized: Explicitly pass force=True to perform a full re-index as requested by the user.
-                num_chunks = run_ingestion(model=bot.get_embedder(), force=True)
+                num_chunks = data_ingest.run_ingestion(model=bot.get_embedder(), force=True)
                 # Optimized: Clear query and answer caches after re-indexing to ensure fresh results.
                 bot.clear_caches()
+                # Optimized: Clear knowledge base details cache to reflect changes in the UI.
+                get_knowledge_base_details.clear()
                 st.write(f"Indexed {num_chunks} chunks.")
                 status.update(
                     label="Re-indexing complete!", state="complete", expanded=False
@@ -281,9 +294,11 @@ if uploaded_files:
             with st.status("Indexing new files...", expanded=True) as status:
                 st.write("Processing uploads...")
                 # Optimized: Call function directly and share embedding model
-                num_chunks = run_ingestion(model=bot.get_embedder())
+                num_chunks = data_ingest.run_ingestion(model=bot.get_embedder())
                 # Optimized: Clear query and answer caches after new data is added.
                 bot.clear_caches()
+                # Optimized: Clear knowledge base details cache to reflect uploaded files in the UI.
+                get_knowledge_base_details.clear()
                 st.write(f"Indexed {num_chunks} chunks.")
                 status.update(
                     label="Indexing complete!", state="complete", expanded=False
