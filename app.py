@@ -15,19 +15,33 @@ def get_knowledge_base_details():
     """Counts and lists the PDF and CSV files in the knowledge base."""
     import glob
 
+    all_files = []
     pdf_files = []
     csv_files = []
     # Match data_ingest.py patterns
     for pattern in ["*.pdf", "uploads/*.pdf"]:
-        pdf_files.extend([os.path.basename(f) for f in glob.glob(pattern)])
+        found = glob.glob(pattern)
+        all_files.extend(found)
+        pdf_files.extend([os.path.basename(f) for f in found])
     for pattern in ["*.csv", "uploads/*.csv"]:
-        csv_files.extend([os.path.basename(f) for f in glob.glob(pattern)])
+        found = glob.glob(pattern)
+        all_files.extend(found)
+        csv_files.extend([os.path.basename(f) for f in found])
 
     # Deduplicate and sort
     pdf_files = sorted(set(pdf_files))
     csv_files = sorted(set(csv_files))
 
-    return len(pdf_files), len(csv_files), pdf_files, csv_files
+    # Calculate last updated time based on file modifications
+    last_updated = "Never"
+    if all_files:
+        try:
+            latest_mtime = max(os.path.getmtime(f) for f in all_files)
+            last_updated = time.strftime("%b %d, %H:%M", time.localtime(latest_mtime))
+        except Exception:
+            pass
+
+    return len(pdf_files), len(csv_files), pdf_files, csv_files, last_updated
 
 
 # --- Simple Authentication ---
@@ -124,14 +138,14 @@ with st.sidebar:
 if "indexed_files" not in st.session_state:
     st.session_state["indexed_files"] = []
 
-pdf_count, csv_count, pdf_files, csv_files = get_knowledge_base_details()
+pdf_count, csv_count, pdf_files, csv_files, last_updated = get_knowledge_base_details()
 
 st.markdown("# 🤖 Bajaj Finserv SmartBot")
 
 h1, h2 = st.columns([0.7, 0.3])
 with h1:
     st.markdown(f"""
-    :grey[🟢 Assistant Ready]
+    :grey[🟢 Assistant Ready] | :grey[🕒 Last updated: {last_updated}]
 
     **Knowledge Base:** :blue[{pdf_count} PDF Documents] | :green[{csv_count} CSV Data Files]
 
@@ -380,11 +394,16 @@ if bfs_path and sensex_path:
                 m1, m2 = st.columns(2)
                 m1.metric(
                     "Latest BFS Close", f"₹{latest_bfs:,.2f}", f"{bfs_delta:+,.2f}"
+                    "Latest BFS Close",
+                    f"₹{latest_bfs:,.2f}",
+                    f"{bfs_delta:+,.2f}",
+                    help="Closing price of Bajaj Finserv stock and change from the previous trading session."
                 )
                 m2.metric(
                     "Latest Sensex Close",
                     f"{latest_sensex:,.2f}",
                     f"{sensex_delta:+,.2f}",
+                    help="Closing value of the BSE Sensex and change from the previous trading session."
                 )
                 st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
                 st.caption(
@@ -479,7 +498,7 @@ st.markdown("## 💬 Ask a question")
 # Optimized: Using st.form for better keyboard accessibility (Enter key) and batching updates
 
 # Using st.form for better keyboard accessibility (Enter key)
-with st.form(key="chat_form", clear_on_submit=False):
+with st.form(key="chat_form", clear_on_submit=True):
     query = st.text_input(
         "Enter your question:",
         placeholder="e.g. What was the closing price of BFS on Jan 2, 2024?",
@@ -509,6 +528,12 @@ if submit_button:
                     st.session_state["chat_history"].append(
                         {"query": query, "answer": answer, "context": context}
                     )
+                    st.session_state['chat_history'].append({
+                        'query': query,
+                        'answer': answer,
+                        'context': context,
+                        'timestamp': time.strftime("%H:%M")
+                    })
                     st.toast("Response generated!", icon="💬")
                 except Exception as e:
                     # Security: Mask raw exception details and log to server
@@ -565,6 +590,12 @@ if not st.session_state["chat_history"]:
                         st.session_state["chat_history"].append(
                             {"query": suggestion, "answer": answer, "context": context}
                         )
+                        st.session_state['chat_history'].append({
+                            'query': suggestion,
+                            'answer': answer,
+                            'context': context,
+                            'timestamp': time.strftime("%H:%M")
+                        })
                         st.toast("Response generated!", icon="💬")
                         st.rerun()
                     except Exception as e:
@@ -593,6 +624,17 @@ else:
 
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(chat["answer"])
+    for i, chat in enumerate(reversed(st.session_state['chat_history'])):
+        ts = chat.get('timestamp', '')
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(chat['query'])
+            if ts:
+                st.caption(f"Sent at {ts}")
+
+        with st.chat_message("assistant", avatar="🤖"):
+            st.markdown(chat['answer'])
+            if ts:
+                st.caption(f"Response at {ts}")
 
             # Dynamically extract and format unique source names for the expander label
             sources = sorted(
