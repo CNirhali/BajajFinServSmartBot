@@ -94,19 +94,19 @@ def retrieve_context(query, top_k=5):
     return _retrieve_context_cached(query.strip(), top_k=top_k)
 
 
-def _sanitize_output(text):
+def sanitize_markdown(text):
     """
-    Sanitizes LLM output to prevent data exfiltration via markdown image tags
-    and XSS via malicious URI protocols (javascript:, vbscript:, data:).
+    Sanitizes text to prevent data exfiltration via markdown image tags
+    and XSS via malicious URI protocols (javascript:, vbscript:, data:, file:, resource:).
     """
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
     text = re.sub(r'!\[', '[', text)
 
     # Security Enhancement: Neutralizing malicious protocols in links to prevent XSS.
-    # It handles javascript:, vbscript:, and data: protocols, including those with
-    # whitespace between the protocol name and the colon.
-    text = re.sub(r'(javascript|vbscript|data)\s*:', r'blocked-\1:', text, flags=re.IGNORECASE)
+    # It handles javascript:, vbscript:, data:, file:, and resource: protocols,
+    # including those with whitespace between the protocol name and the colon.
+    text = re.sub(r'(javascript|vbscript|data|file|resource)\s*:', r'blocked-\1:', text, flags=re.IGNORECASE)
 
     return text
 
@@ -147,7 +147,7 @@ Answer:"""
     raw_answer = response.json().get('response', '').strip()
 
     # Security: Sanitize output to prevent exfiltration via markdown images
-    return _sanitize_output(raw_answer)
+    return sanitize_markdown(raw_answer)
 
 
 @functools.lru_cache(maxsize=128)
