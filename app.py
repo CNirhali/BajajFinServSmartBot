@@ -22,32 +22,12 @@ def get_knowledge_base_details():
     pdf_files = sorted(set(os.path.basename(p) for p in disk_pdfs))
     csv_files = sorted(set(os.path.basename(p) for p in disk_csvs))
 
-def get_knowledge_base_details():
-    """Counts and lists the PDF and CSV files in the knowledge base."""
-    import glob
-
-    all_files = []
-    pdf_files = []
-    csv_files = []
-    # Match data_ingest.py patterns
-    for pattern in ["*.pdf", "uploads/*.pdf"]:
-        found = glob.glob(pattern)
-        all_files.extend(found)
-        pdf_files.extend([os.path.basename(f) for f in found])
-    for pattern in ["*.csv", "uploads/*.csv"]:
-        found = glob.glob(pattern)
-        all_files.extend(found)
-        csv_files.extend([os.path.basename(f) for f in found])
-
-    # Deduplicate and sort
-    pdf_files = sorted(set(pdf_files))
-    csv_files = sorted(set(csv_files))
-
     # Calculate last updated time based on file modifications
+    all_paths = disk_pdfs + disk_csvs
     last_updated = "Never"
-    if all_files:
+    if all_paths:
         try:
-            latest_mtime = max(os.path.getmtime(f) for f in all_files)
+            latest_mtime = max(os.path.getmtime(f) for f in all_paths)
             last_updated = time.strftime("%b %d, %H:%M", time.localtime(latest_mtime))
         except Exception:
             pass
@@ -408,7 +388,6 @@ if bfs_path and sensex_path:
                 st.markdown(f"### Absolute Price Comparison (as of {latest_date})")
                 m1, m2 = st.columns(2)
                 m1.metric(
-                    "Latest BFS Close", f"₹{latest_bfs:,.2f}", f"{bfs_delta:+,.2f}"
                     "Latest BFS Close",
                     f"₹{latest_bfs:,.2f}",
                     f"{bfs_delta:+,.2f}",
@@ -540,9 +519,6 @@ if submit_button:
             with st.spinner("Searching transcripts and generating response..."):
                 try:
                     answer, context = bot.answer_query(query)
-                    st.session_state["chat_history"].append(
-                        {"query": query, "answer": answer, "context": context}
-                    )
                     st.session_state['chat_history'].append({
                         'query': query,
                         'answer': answer,
@@ -602,9 +578,6 @@ if not st.session_state["chat_history"]:
                 with st.spinner(f"Generating response for: {suggestion}..."):
                     try:
                         answer, context = bot.answer_query(suggestion)
-                        st.session_state["chat_history"].append(
-                            {"query": suggestion, "answer": answer, "context": context}
-                        )
                         st.session_state['chat_history'].append({
                             'query': suggestion,
                             'answer': answer,
@@ -633,12 +606,6 @@ else:
             st.session_state["chat_history"] = []
             st.rerun()
 
-    for i, chat in enumerate(reversed(st.session_state["chat_history"])):
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(chat["query"])
-
-        with st.chat_message("assistant", avatar="🤖"):
-            st.markdown(chat["answer"])
     for i, chat in enumerate(reversed(st.session_state['chat_history'])):
         ts = chat.get('timestamp', '')
         with st.chat_message("user", avatar="👤"):
