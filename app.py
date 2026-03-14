@@ -252,6 +252,11 @@ if uploaded_files:
                 st.error(f"Skipping invalid filename: {uploaded_file.name}")
                 continue
 
+            # Security Enhancement: Limit filename length to prevent filesystem-related issues or DoS.
+            if len(safe_filename) > 255:
+                st.error(f"Skipping {uploaded_file.name}: Filename exceeds 255 character limit.")
+                continue
+
             file_path = os.path.join(DATA_DIR, safe_filename)
             try:
                 with open(file_path, "wb") as f:
@@ -609,7 +614,8 @@ else:
     for i, chat in enumerate(reversed(st.session_state['chat_history'])):
         ts = chat.get('timestamp', '')
         with st.chat_message("user", avatar="👤"):
-            st.markdown(chat['query'])
+            # Security: Sanitize user query before rendering to prevent XSS from stored history
+            st.markdown(bot.sanitize_markdown(chat['query']))
             if ts:
                 st.caption(f"Sent at {ts}")
 
@@ -647,7 +653,8 @@ else:
                     if line.startswith("Source:"):
                         # If we have accumulated content for a previous source, render it
                         if current_source and current_content:
-                            st.markdown(f":blue[**{current_source}**]")
+                            # Security: Sanitize source name before rendering
+                            st.markdown(f":blue[**{bot.sanitize_markdown(current_source)}**]")
                             st.code("\n".join(current_content), language=None)
                             current_content = []
                         current_source = line
@@ -657,7 +664,8 @@ else:
 
                 # Render the final source block
                 if current_source and current_content:
-                    st.markdown(f":blue[**{current_source}**]")
+                    # Security: Sanitize source name before rendering
+                    st.markdown(f":blue[**{bot.sanitize_markdown(current_source)}**]")
                     st.code("\n".join(current_content), language=None)
                 # Download button for answer and context
                 download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{chat['context']}"

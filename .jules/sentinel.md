@@ -45,3 +45,14 @@
 **Prevention:**
 1. Always sanitize LLM output for known XSS vectors like `javascript:` and `data:` URI schemes.
 2. Implement global or component-level try-except blocks in Streamlit that log the raw error to server stdout but show a safe message to the user.
+
+## 2025-05-15 - [Markdown Sanitization & Filename Validation]
+**Vulnerability:** XSS via stored user queries and exfiltration via file/resource URI protocols. Potential DoS via long filenames.
+**Learning:**
+1. Sanitizing LLM output is not enough; user-provided content rendered back to the UI (e.g., chat history) must also be sanitized for markdown-based exfiltration and XSS.
+2. Modern browsers support dangerous URI schemes like `file:` and `resource:` that must be neutralized alongside `javascript:`.
+3. Unvalidated filename lengths can cause filesystem errors or resource exhaustion.
+**Prevention:**
+1. Shared sanitization utilities should be used for all untrusted markdown rendering (user and assistant).
+2. Protocol blocklists should include local and browser-internal schemes.
+3. Implement strict length limits (e.g., 255 chars) on all user-controlled filenames.
