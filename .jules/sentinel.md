@@ -56,3 +56,12 @@
 1. Shared sanitization utilities should be used for all untrusted markdown rendering (user and assistant).
 2. Protocol blocklists should include local and browser-internal schemes.
 3. Implement strict length limits (e.g., 255 chars) on all user-controlled filenames.
+
+## 2026-03-15 - [UI Markdown Injection and LLM Runaway Mitigation]
+**Vulnerability:** Potential Markdown injection via file/source names and resource exhaustion from unbounded LLM responses.
+**Learning:**
+1. Any UI component that supports Markdown (like Streamlit's `st.caption`) is an injection vector if it displays untrusted data like filenames.
+2. Even with `timeout` and `max_chars` on input, a malicious or malfunctioning LLM can still trigger a DoS by generating an extremely long response.
+**Prevention:**
+1. Sanitize ALL untrusted data before rendering in Markdown-capable UI components, including metadata like filenames.
+2. Always enforce response length limits (e.g., `num_predict` in Ollama) at the LLM API level.

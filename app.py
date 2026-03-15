@@ -153,11 +153,13 @@ with h2:
         with c1:
             st.markdown(f"**📄 PDFs ({pdf_count})**")
             for f in pdf_files:
-                st.caption(f"- {f}")
+                # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
+                st.caption(f"- {bot.sanitize_markdown(f)}")
         with c2:
             st.markdown(f"**📊 CSVs ({csv_count})**")
             for f in csv_files:
-                st.caption(f"- {f}")
+                # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
+                st.caption(f"- {bot.sanitize_markdown(f)}")
 
 st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 
@@ -634,7 +636,9 @@ else:
                     )
                 )
             )
-            source_names = ", ".join(sources)
+            # Security: Sanitize source names before constructing the label to prevent Markdown injection
+            safe_sources = [bot.sanitize_markdown(s) for s in sources]
+            source_names = ", ".join(safe_sources)
             # Truncate source names if they are too long for the label
             if len(source_names) > 60:
                 source_names = source_names[:57] + "..."
