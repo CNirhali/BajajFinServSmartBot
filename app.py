@@ -154,11 +154,13 @@ with h2:
         with c1:
             st.markdown(f"**📄 PDFs ({pdf_count})**")
             for f in pdf_files:
-                st.caption(f"- {f}")
+                # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
+                st.caption(f"- {bot.sanitize_markdown(f)}")
         with c2:
             st.markdown(f"**📊 CSVs ({csv_count})**")
             for f in csv_files:
-                st.caption(f"- {f}")
+                # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
+                st.caption(f"- {bot.sanitize_markdown(f)}")
 
 st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 
@@ -634,6 +636,19 @@ else:
             if ts:
                 st.caption(f"Response at {ts}")
 
+            # Dynamically extract and format unique source names for the expander label
+            sources = sorted(
+                list(
+                    set(
+                        line.replace("Source:", "").strip()
+                        for line in chat["context"].split("\n")
+                        if line.startswith("Source:")
+                    )
+                )
+            )
+            # Security: Sanitize source names before constructing the label to prevent Markdown injection
+            safe_sources = [bot.sanitize_markdown(s) for s in sources]
+            source_names = ", ".join(safe_sources)
             # Optimized: Use structured context list directly to find unique sources
             # instead of redundant string splitting and parsing on every rerun.
             context_data = chat["context"]

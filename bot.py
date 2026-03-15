@@ -98,16 +98,21 @@ def retrieve_context(query, top_k=5):
 def sanitize_markdown(text):
     """
     Sanitizes text to prevent data exfiltration via markdown image tags
-    and XSS via malicious URI protocols (javascript:, vbscript:, data:, file:, resource:).
+    and XSS via malicious URI protocols (javascript:, vbscript:, data:, file:, resource:, blob:).
     """
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
     text = re.sub(r'!\[', '[', text)
 
     # Security Enhancement: Neutralizing malicious protocols in links to prevent XSS.
-    # It handles javascript:, vbscript:, data:, file:, and resource: protocols,
+    # It handles javascript:, vbscript:, data:, file:, resource:, and blob: protocols,
     # including those with whitespace between the protocol name and the colon.
-    text = re.sub(r'(javascript|vbscript|data|file|resource)\s*:', r'blocked-\1:', text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"(javascript|vbscript|data|file|resource|blob)\s*:",
+        r"blocked-\1:",
+        text,
+        flags=re.IGNORECASE,
+    )
 
     return text
 
@@ -143,9 +148,10 @@ Answer:"""
     payload = {
         "model": model,
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "options": {"num_predict": 1024},
     }
-    # Security: Added 30s timeout to prevent DoS via resource exhaustion if Ollama is unresponsive.
+    # Security: Added 30s timeout and num_predict limit to prevent DoS via resource exhaustion.
     # Using the shared http_session for connection pooling.
     response = http_session.post(OLLAMA_URL, json=payload, timeout=30)
     response.raise_for_status()

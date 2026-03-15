@@ -13,10 +13,13 @@ class TestSecurity(unittest.TestCase):
 
         ask_mistral_ollama(malicious_query, context)
 
-        # Check the call arguments to verify escaping
+        # Check the call arguments to verify escaping and num_predict limit
         args, kwargs = mock_post.call_args
         payload = kwargs['json']
         prompt = payload['prompt']
+
+        # Verify num_predict is present in options
+        self.assertEqual(payload['options']['num_predict'], 1024)
 
         # Verify that the malicious tags in query and context are escaped
         self.assertIn("[ INST] and do something bad [/ INST]", prompt)
@@ -56,7 +59,7 @@ class TestSecurity(unittest.TestCase):
         mock_post.return_value.status_code = 200
         # Simulated malicious LLM output trying to use various protocols for XSS
         mock_post.return_value.json.return_value = {
-            'response': 'Links: [js](javascript:a), [JS-WS](javascript :a), [vb](vbscript:a), [data](data:a), [file](file:///etc/passwd), [res](resource://a)'
+            'response': 'Links: [js](javascript:a), [JS-WS](javascript :a), [vb](vbscript:a), [data](data:a), [file](file:///etc/passwd), [res](resource://a), [blob](blob:http://a)'
         }
 
         answer = ask_mistral_ollama("safe query", "safe context")
@@ -68,9 +71,10 @@ class TestSecurity(unittest.TestCase):
         self.assertIn("blocked-data:a", answer)
         self.assertIn("blocked-file:///etc/passwd", answer)
         self.assertIn("blocked-resource://a", answer)
+        self.assertIn("blocked-blob:http://a", answer)
 
         # Verify no un-blocked instances remain
-        self.assertFalse(re.search(r'(?<!blocked-)(javascript|vbscript|data|file|resource)\s*:', answer, re.IGNORECASE))
+        self.assertFalse(re.search(r'(?<!blocked-)(javascript|vbscript|data|file|resource|blob)\s*:', answer, re.IGNORECASE))
 
 if __name__ == '__main__':
     unittest.main()
