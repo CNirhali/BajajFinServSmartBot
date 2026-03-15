@@ -79,10 +79,11 @@ def _retrieve_context_cached(query, top_k=5):
     # results['documents'] is a list of lists (one per query)
     docs = results['documents'][0]
     metadatas = results['metadatas'][0]
-    context = "\n\n".join([
-        f"Source: {meta['source']}\n{doc}" for doc, meta in zip(docs, metadatas)
-    ])
-    return context
+    # Optimized: Return structured data instead of a joined string to avoid redundant
+    # string parsing in the frontend and enable more efficient processing.
+    return [
+        {'source': meta['source'], 'text': doc} for doc, meta in zip(docs, metadatas)
+    ]
 
 
 def retrieve_context(query, top_k=5):
@@ -117,6 +118,10 @@ def sanitize_markdown(text):
 
 
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
+    # Optimized: If context is structured (list of dicts), join it into a string for the prompt.
+    if isinstance(context, list):
+        context = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+
     # Security: Sanitize input to prevent prompt injection by escaping Mistral instruction tags.
     # We escape both [INST] and [/INST] using case-insensitive regex to handle variations.
     inst_pattern = re.compile(r'\[/?INST\]', re.IGNORECASE)
@@ -188,4 +193,6 @@ if __name__ == '__main__':
         if user_query.lower() == 'exit':
             break
         answer, context = answer_query(user_query)
-        print(f"\nAnswer: {answer}\n\n---\nContext used:\n{context}\n")
+        # Handle structured context for printing
+        context_str = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+        print(f"\nAnswer: {answer}\n\n---\nContext used:\n{context_str}\n")

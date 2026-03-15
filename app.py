@@ -7,6 +7,7 @@ import shutil
 import time
 import io
 import pandas as pd
+from collections import defaultdict
 
 st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
@@ -526,10 +527,15 @@ if submit_button:
             with st.spinner("Searching transcripts and generating response..."):
                 try:
                     answer, context = bot.answer_query(query)
+                    # Optimized: Sanitize user query once before storing to history,
+                    # reducing CPU overhead during subsequent UI reruns.
+                    # Optimized: Pre-join context for download button to avoid reconstruction on every rerun.
+                    context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
                     st.session_state['chat_history'].append({
-                        'query': query,
+                        'query': bot.sanitize_markdown(query),
                         'answer': answer,
                         'context': context,
+                        'context_full_text': context_full_text,
                         'timestamp': time.strftime("%H:%M")
                     })
                     st.toast("Response generated!", icon="💬")
@@ -585,10 +591,14 @@ if not st.session_state["chat_history"]:
                 with st.spinner(f"Generating response for: {suggestion}..."):
                     try:
                         answer, context = bot.answer_query(suggestion)
+                        # Optimized: Sanitize suggestion once before storing.
+                        # Optimized: Pre-join context for download button.
+                        context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
                         st.session_state['chat_history'].append({
-                            'query': suggestion,
+                            'query': bot.sanitize_markdown(suggestion),
                             'answer': answer,
                             'context': context,
+                            'context_full_text': context_full_text,
                             'timestamp': time.strftime("%H:%M")
                         })
                         st.toast("Response generated!", icon="💬")
@@ -616,8 +626,8 @@ else:
     for i, chat in enumerate(reversed(st.session_state['chat_history'])):
         ts = chat.get('timestamp', '')
         with st.chat_message("user", avatar="👤"):
-            # Security: Sanitize user query before rendering to prevent XSS from stored history
-            st.markdown(bot.sanitize_markdown(chat['query']))
+            # Optimized: User query is already sanitized before storage.
+            st.markdown(chat['query'])
             if ts:
                 st.caption(f"Sent at {ts}")
 
@@ -639,6 +649,12 @@ else:
             # Security: Sanitize source names before constructing the label to prevent Markdown injection
             safe_sources = [bot.sanitize_markdown(s) for s in sources]
             source_names = ", ".join(safe_sources)
+            # Optimized: Use structured context list directly to find unique sources
+            # instead of redundant string splitting and parsing on every rerun.
+            context_data = chat["context"]
+            sources = sorted(list(set(c["source"] for c in context_data)))
+            source_names = ", ".join(sources)
+
             # Truncate source names if they are too long for the label
             if len(source_names) > 60:
                 source_names = source_names[:57] + "..."
@@ -648,31 +664,24 @@ else:
                 expander_label += f": {source_names}"
 
             with st.expander(expander_label, expanded=False):
-                # Optimized: Group context by source for better readability
-                context_lines = chat["context"].split("\n")
-                current_source = None
-                current_content = []
+                # Optimized: Use the structured context list for efficient grouping and rendering.
+                grouped_context = defaultdict(list)
+                for item in context_data:
+                    grouped_context[item['source']].append(item['text'])
 
-                for line in context_lines:
-                    if line.startswith("Source:"):
-                        # If we have accumulated content for a previous source, render it
-                        if current_source and current_content:
-                            # Security: Sanitize source name before rendering
-                            st.markdown(f":blue[**{bot.sanitize_markdown(current_source)}**]")
-                            st.code("\n".join(current_content), language=None)
-                            current_content = []
-                        current_source = line
-                    else:
-                        if line.strip():
-                            current_content.append(line)
+                for src in sorted(grouped_context.keys()):
+                    # Security: Sanitize source name before rendering.
+                    # Affordance: Restore "Source: " prefix for clarity in the UI.
+                    st.markdown(f":blue[**Source: {bot.sanitize_markdown(src)}**]")
+                    st.code("\n\n".join(grouped_context[src]), language=None)
 
-                # Render the final source block
-                if current_source and current_content:
-                    # Security: Sanitize source name before rendering
-                    st.markdown(f":blue[**{bot.sanitize_markdown(current_source)}**]")
-                    st.code("\n".join(current_content), language=None)
                 # Download button for answer and context
-                download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{chat['context']}"
+                # Optimized: Use pre-joined context string from session state.
+                context_str = chat.get('context_full_text', "")
+                if not context_str:
+                    context_str = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context_data])
+
+                download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{context_str}"
                 st.download_button(
                     label="📥 Download Answer & Context",
                     data=download_text,
