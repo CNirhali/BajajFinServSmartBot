@@ -7,3 +7,7 @@
 ## 2026-03-11 - [Accessible Data Tables]
 **Learning:** For financial applications, charts are great for trends but inaccessible for precision and screen readers. Providing a "Data Table" tab with `st.dataframe` and proper `st.column_config` (currency formatting, date formatting) significantly improves accessibility and user trust.
 **Action:** Always offer a raw data view alongside complex visualizations to ensure data accessibility and transparency.
+
+## 2026-03-16 - [Financial Metric Context]
+**Learning:** Displaying absolute delta values for financial metrics (like stock prices) is often insufficient for users to grasp the significance of a change. Adding the percentage delta provides immediate relative context, making the data more actionable and insightful.
+**Action:** Always include percentage deltas alongside absolute changes in financial metrics to improve data interpretation.
