@@ -531,11 +531,17 @@ if submit_button:
                     # reducing CPU overhead during subsequent UI reruns.
                     # Optimized: Pre-join context for download button to avoid reconstruction on every rerun.
                     context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+
+                    # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
+                    # to eliminate redundant processing during every Streamlit rerun.
+                    expander_label, _ = bot.format_source_label(context)
+
                     st.session_state['chat_history'].append({
                         'query': bot.sanitize_markdown(query),
                         'answer': answer,
                         'context': context,
                         'context_full_text': context_full_text,
+                        'expander_label': expander_label,
                         'timestamp': time.strftime("%H:%M")
                     })
                     st.toast("Response generated!", icon="💬")
@@ -594,11 +600,16 @@ if not st.session_state["chat_history"]:
                         # Optimized: Sanitize suggestion once before storing.
                         # Optimized: Pre-join context for download button.
                         context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+
+                        # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
+                        expander_label, _ = bot.format_source_label(context)
+
                         st.session_state['chat_history'].append({
                             'query': bot.sanitize_markdown(suggestion),
                             'answer': answer,
                             'context': context,
                             'context_full_text': context_full_text,
+                            'expander_label': expander_label,
                             'timestamp': time.strftime("%H:%M")
                         })
                         st.toast("Response generated!", icon="💬")
@@ -636,32 +647,14 @@ else:
             if ts:
                 st.caption(f"Response at {ts}")
 
-            # Dynamically extract and format unique source names for the expander label
-            sources = sorted(
-                list(
-                    set(
-                        line.replace("Source:", "").strip()
-                        for line in chat["context"].split("\n")
-                        if line.startswith("Source:")
-                    )
-                )
-            )
-            # Security: Sanitize source names before constructing the label to prevent Markdown injection
-            safe_sources = [bot.sanitize_markdown(s) for s in sources]
-            source_names = ", ".join(safe_sources)
-            # Optimized: Use structured context list directly to find unique sources
-            # instead of redundant string splitting and parsing on every rerun.
+            # Optimized: Use pre-calculated expander label from session state
+            # to avoid redundant set operations and sorting on every rerun.
             context_data = chat["context"]
-            sources = sorted(list(set(c["source"] for c in context_data)))
-            source_names = ", ".join(sources)
+            expander_label = chat.get('expander_label')
 
-            # Truncate source names if they are too long for the label
-            if len(source_names) > 60:
-                source_names = source_names[:57] + "..."
-
-            expander_label = f"🔍 Show context from {len(sources)} sources"
-            if sources:
-                expander_label += f": {source_names}"
+            # Fallback for old sessions if necessary
+            if not expander_label:
+                expander_label, _ = bot.format_source_label(context_data)
 
             with st.expander(expander_label, expanded=False):
                 # Optimized: Use the structured context list for efficient grouping and rendering.
