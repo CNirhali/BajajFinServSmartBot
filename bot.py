@@ -102,15 +102,15 @@ def sanitize_markdown(text):
     """
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
-    # Optimized: Use str.replace for ~4x faster execution compared to re.sub for simple patterns.
-    text = text.replace('![', '[')
+    # We use re.sub to handle multiple exclamation marks (e.g., !![) that could bypass a simple replace.
+    text = re.sub(r"!+\[", "[", text)
 
     # Security Enhancement: Neutralizing malicious protocols in links to prevent XSS.
-    # It handles javascript:, vbscript:, data:, file:, resource:, and blob: protocols,
-    # including those with whitespace between the protocol name and the colon.
+    # It handles javascript:, vbscript:, data:, file:, resource:, and blob: protocols.
+    # We also match common encoded colon representations (:, &#x3a;, &#58;, %3a) to prevent bypasses.
     text = re.sub(
-        r"(javascript|vbscript|data|file|resource|blob)\s*:",
-        r"blocked-\1:",
+        r"(javascript|vbscript|data|file|resource|blob)\s*(:|&#x3a;|&#58;|%3a)",
+        r"blocked-\1\2",
         text,
         flags=re.IGNORECASE,
     )
