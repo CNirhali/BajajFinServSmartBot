@@ -534,8 +534,6 @@ if submit_button:
             with st.spinner("Searching transcripts and generating response..."):
                 try:
                     answer, context = bot.answer_query(query)
-                    # Optimized: Sanitize user query once before storing to history,
-                    # reducing CPU overhead during subsequent UI reruns.
                     # Optimized: Pre-join context for download button to avoid reconstruction on every rerun.
                     context_full_text = "\n\n".join(
                         [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -552,6 +550,18 @@ if submit_button:
                         'expander_label': expander_label,
                         'timestamp': time.strftime("%H:%M")
                     })
+                    # Optimized: Sanitize user query once before storing to history,
+                    # reducing CPU overhead during subsequent UI reruns.
+                    st.session_state["chat_history"].append(
+                        {
+                            "query": bot.sanitize_markdown(query),
+                            "answer": answer,
+                            "context": context,
+                            "context_full_text": context_full_text,
+                            "expander_label": expander_label,
+                            "timestamp": time.strftime("%H:%M"),
+                        }
+                    )
                     st.toast("Response generated!", icon="💬")
                 except Exception as e:
                     # Security: Mask raw exception details and log to server
@@ -614,7 +624,6 @@ if not st.session_state["chat_history"]:
                 with st.spinner(f"Generating response for: {suggestion}..."):
                     try:
                         answer, context = bot.answer_query(suggestion)
-                        # Optimized: Sanitize suggestion once before storing.
                         # Optimized: Pre-join context for download button.
                         context_full_text = "\n\n".join(
                             [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -630,6 +639,17 @@ if not st.session_state["chat_history"]:
                             'expander_label': expander_label,
                             'timestamp': time.strftime("%H:%M")
                         })
+                        # Optimized: Sanitize suggestion once before storing.
+                        st.session_state["chat_history"].append(
+                            {
+                                "query": bot.sanitize_markdown(suggestion),
+                                "answer": answer,
+                                "context": context,
+                                "context_full_text": context_full_text,
+                                "expander_label": expander_label,
+                                "timestamp": time.strftime("%H:%M"),
+                            }
+                        )
                         st.toast("Response generated!", icon="💬")
                         st.rerun()
                     except Exception as e:
