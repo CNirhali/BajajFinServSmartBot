@@ -113,6 +113,26 @@ if not st.session_state["authenticated"]:
 # --- Sidebar ---
 with st.sidebar:
     st.title("🛡️ Sentinel Security")
+
+    # UX Enhancement: Move Clear Chat to sidebar as "New Chat" for better accessibility
+    with st.popover(
+        "🗑️ New Chat",
+        help="Clear the current conversation and start a new session.",
+        use_container_width=True,
+    ):
+        st.warning("Are you sure you want to clear the entire chat history?")
+        if st.button(
+            "🗑️ Yes, clear history",
+            type="primary",
+            use_container_width=True,
+            help="Confirm deletion of all chat history.",
+        ):
+            st.session_state["chat_history"] = []
+            st.toast("Chat history cleared!", icon="🗑️")
+            time.sleep(0.5)
+            st.rerun()
+
+    st.markdown("---")
     if st.button(
         "🔒 Logout",
         help="Securely end your session and clear all temporary data.",
@@ -156,12 +176,12 @@ with h2:
             st.markdown(f"**📄 PDFs ({pdf_count})**")
             for f in pdf_files:
                 # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
-                st.caption(f"- {bot.sanitize_markdown(f)}")
+                st.caption(f"📄 {bot.sanitize_markdown(f)}")
         with c2:
             st.markdown(f"**📊 CSVs ({csv_count})**")
             for f in csv_files:
                 # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
-                st.caption(f"- {bot.sanitize_markdown(f)}")
+                st.caption(f"📊 {bot.sanitize_markdown(f)}")
 
 st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 
@@ -406,16 +426,12 @@ if bfs_path and sensex_path:
                     "Latest BFS Close",
                     f"₹{latest_bfs:,.2f}",
                     f"{bfs_delta:+,.2f} ({bfs_pct_delta:+,.2f}%)",
-                    help="Closing price of Bajaj Finserv stock and change from the previous trading session."
-                    f"{bfs_delta:+,.2f}",
                     help="Closing price of Bajaj Finserv stock and change from the previous trading session.",
                 )
                 m2.metric(
                     "Latest Sensex Close",
                     f"{latest_sensex:,.2f}",
                     f"{sensex_delta:+,.2f} ({sensex_pct_delta:+,.2f}%)",
-                    help="Closing value of the BSE Sensex and change from the previous trading session."
-                    f"{sensex_delta:+,.2f}",
                     help="Closing value of the BSE Sensex and change from the previous trading session.",
                 )
                 st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
@@ -544,22 +560,12 @@ if submit_button:
                     context_full_text = "\n\n".join(
                         [f"Source: {c['source']}\n{c['text']}" for c in context]
                     )
-                    st.session_state["chat_history"].append(
-                        {
-                            "query": bot.sanitize_markdown(query),
-                            "answer": answer,
-                            "context": context,
-                            "context_full_text": context_full_text,
-                            "timestamp": time.strftime("%H:%M"),
-                        }
-                    )
-                    context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
 
                     # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
                     # to eliminate redundant processing during every Streamlit rerun.
                     expander_label, _ = bot.format_source_label(context)
 
-                    st.session_state['chat_history'].append({
+                    st.session_state["chat_history"].append({
                         'query': bot.sanitize_markdown(query),
                         'answer': answer,
                         'context': context,
@@ -634,21 +640,11 @@ if not st.session_state["chat_history"]:
                         context_full_text = "\n\n".join(
                             [f"Source: {c['source']}\n{c['text']}" for c in context]
                         )
-                        st.session_state["chat_history"].append(
-                            {
-                                "query": bot.sanitize_markdown(suggestion),
-                                "answer": answer,
-                                "context": context,
-                                "context_full_text": context_full_text,
-                                "timestamp": time.strftime("%H:%M"),
-                            }
-                        )
-                        context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
 
                         # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
                         expander_label, _ = bot.format_source_label(context)
 
-                        st.session_state['chat_history'].append({
+                        st.session_state["chat_history"].append({
                             'query': bot.sanitize_markdown(suggestion),
                             'answer': answer,
                             'context': context,
@@ -665,19 +661,6 @@ if not st.session_state["chat_history"]:
                             "⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running."
                         )
 else:
-    with st.popover(
-        "🗑️ Clear Chat History", help="Delete all messages from the current session."
-    ):
-        st.warning("Are you sure you want to clear the entire chat history?")
-        if st.button(
-            "🗑️ Yes, clear history",
-            type="primary",
-            use_container_width=True,
-            help="Confirm deletion of all chat history.",
-        ):
-            st.session_state["chat_history"] = []
-            st.rerun()
-
     for i, chat in enumerate(reversed(st.session_state["chat_history"])):
         ts = chat.get("timestamp", "")
         with st.chat_message("user", avatar="👤"):
@@ -729,8 +712,11 @@ else:
 
                 for src in sorted(grouped_context.keys()):
                     # Security: Sanitize source name before rendering.
-                    # Affordance: Restore "Source: " prefix for clarity in the UI.
-                    st.markdown(f":blue[**Source: {bot.sanitize_markdown(src)}**]")
+                    # Affordance: Add icons to sources for quicker identification.
+                    icon = "📊" if src.lower().endswith(".csv") else "📄"
+                    st.markdown(
+                        f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]"
+                    )
                     st.code("\n\n".join(grouped_context[src]), language=None)
 
                 # Download button for answer and context

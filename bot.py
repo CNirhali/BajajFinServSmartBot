@@ -185,7 +185,11 @@ def format_source_label(context):
     """
     sources = sorted(list(set(c["source"] for c in context)))
     # Security: Sanitize source names to prevent Markdown injection
-    safe_sources = [sanitize_markdown(s) for s in sources]
+    # Affordance: Add icons based on file type for better visual scannability.
+    safe_sources = []
+    for s in sources:
+        icon = "📊" if s.lower().endswith(".csv") else "📄"
+        safe_sources.append(f"{icon} {sanitize_markdown(s)}")
     source_names = ", ".join(safe_sources)
 
     # Truncate source names if they are too long for the label

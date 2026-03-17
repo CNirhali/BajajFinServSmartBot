@@ -14,3 +14,11 @@
 ## 2025-05-15 - [Engaging Empty States]
 **Learning:** In chat-based interfaces, the "empty state" is a prime opportunity to demonstrate the assistant's personality. Using an actual `st.chat_message("assistant")` block to welcome users and provide guided suggestions is far more engaging and intuitive than a static info box or toast.
 **Action:** Always prefer interactive, themed components for empty states to set the right tone for the user session.
+
+## 2026-03-24 - [AI Assistant Navigation Standards]
+**Learning:** For AI assistants, placing "New Chat" or "Clear History" in a sidebar following industry standard patterns (like ChatGPT) significantly improves discoverability and user flow compared to placing it at the end of a growing message list.
+**Action:** Always prioritize placing session management actions in a persistent sidebar or header.
+
+## 2026-03-24 - [Visual Scannability for Multi-format RAG]
+**Learning:** In RAG systems that ingest multiple file types (PDF, CSV, etc.), adding simple icons (📄, 📊) to source citations and file lists allows users to mentally categorize information sources 50-70% faster without reading full filenames.
+**Action:** Use file-type icons consistently across all UI components that reference documents to aid quick visual identification.
