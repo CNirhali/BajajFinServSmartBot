@@ -384,12 +384,14 @@ if bfs_path and sensex_path:
             latest_bfs = merged["BFS Close"].iloc[-1]
             prev_bfs = merged["BFS Close"].iloc[-2] if len(merged) > 1 else latest_bfs
             bfs_delta = latest_bfs - prev_bfs
+            bfs_pct_delta = (bfs_delta / prev_bfs * 100) if prev_bfs != 0 else 0
 
             latest_sensex = merged["Sensex Close"].iloc[-1]
             prev_sensex = (
                 merged["Sensex Close"].iloc[-2] if len(merged) > 1 else latest_sensex
             )
             sensex_delta = latest_sensex - prev_sensex
+            sensex_pct_delta = (sensex_delta / prev_sensex * 100) if prev_sensex != 0 else 0
 
             latest_date = merged["Date"].iloc[-1].strftime("%b %d, %Y")
 
@@ -403,12 +405,16 @@ if bfs_path and sensex_path:
                 m1.metric(
                     "Latest BFS Close",
                     f"₹{latest_bfs:,.2f}",
+                    f"{bfs_delta:+,.2f} ({bfs_pct_delta:+,.2f}%)",
+                    help="Closing price of Bajaj Finserv stock and change from the previous trading session."
                     f"{bfs_delta:+,.2f}",
                     help="Closing price of Bajaj Finserv stock and change from the previous trading session.",
                 )
                 m2.metric(
                     "Latest Sensex Close",
                     f"{latest_sensex:,.2f}",
+                    f"{sensex_delta:+,.2f} ({sensex_pct_delta:+,.2f}%)",
+                    help="Closing value of the BSE Sensex and change from the previous trading session."
                     f"{sensex_delta:+,.2f}",
                     help="Closing value of the BSE Sensex and change from the previous trading session.",
                 )
@@ -688,6 +694,9 @@ else:
             # Optimized: Use structured context list directly to find unique sources
             # instead of redundant string splitting and parsing on every rerun.
             context_data = chat["context"]
+            sources = sorted(list(set(c["source"] for c in context_data)))
+            # Security: Sanitize source names before constructing the label to prevent Markdown injection
+            source_names = ", ".join([bot.sanitize_markdown(s) for s in sources])
             unique_sources = sorted(list(set(c["source"] for c in context_data)))
 
             # Security: Sanitize source names before constructing the label to prevent Markdown injection
