@@ -13,6 +13,17 @@ MISTRAL_MODEL = 'mistral'  # Change if your model name is different
 _embedder = None
 _collection = None
 
+# Pre-compiled regex patterns for performance
+# Used in sanitize_markdown to prevent data exfiltration via image tags
+RE_MD_IMAGE = re.compile(r"!+\[")
+# Used in sanitize_markdown to neutralize dangerous URI protocols
+RE_DANGEROUS_PROTOCOL = re.compile(
+    r"(javascript|vbscript|data|file|resource|blob)\s*(:|&#x3a;|&#58;|%3a)",
+    re.IGNORECASE,
+)
+# Used in ask_mistral_ollama to escape Mistral instruction tags
+RE_INST_TAG = re.compile(r"\[/?INST\]", re.IGNORECASE)
+
 
 def get_embedder():
     """Returns the pre-loaded embedding model, initializing it on first call."""
@@ -102,20 +113,63 @@ def sanitize_markdown(text):
     """
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
-    # We use re.sub to handle multiple exclamation marks (e.g., !![) that could bypass a simple replace.
-    text = re.sub(r"!+\[", "[", text)
+    # We use RE_MD_IMAGE to handle multiple exclamation marks (e.g., !![) that could bypass a simple replace.
+    text = RE_MD_IMAGE.sub("[", text)
 
     # Security Enhancement: Neutralizing malicious protocols in links to prevent XSS.
     # It handles javascript:, vbscript:, data:, file:, resource:, and blob: protocols.
     # We also match common encoded colon representations (:, &#x3a;, &#58;, %3a) to prevent bypasses.
-    text = re.sub(
-        r"(javascript|vbscript|data|file|resource|blob)\s*(:|&#x3a;|&#58;|%3a)",
-        r"blocked-\1\2",
+    text = RE_DANGEROUS_PROTOCOL.sub(r"blocked-\1\2", text)
+    # We use a more aggressive regex to catch internal whitespace in protocols.
+    # We also handle several common HTML entities directly in the regex to avoid
+    # unescaping the whole string and potentially re-introducing HTML XSS.
+    protocols = ['javascript', 'vbscript', 'data', 'file', 'resource', 'blob']
+
+    # Character maps for common obfuscations
+    char_map = {
+        'a': r'(a|&#(x61|97);|&a(acute|grave|circ|tilde|uml);)',
+        'b': r'(b|&#(x62|98);)',
+        'c': r'(c|&#(x63|99);)',
+        'd': r'(d|&#(x64|100);)',
+        'e': r'(e|&#(x65|101);|&e(acute|grave|circ|uml);)',
+        'f': r'(f|&#(x66|102);)',
+        'i': r'(i|&#(x69|105);|&i(acute|grave|circ|uml);)',
+        'j': r'(j|&#(x6a|106);)',
+        'l': r'(l|&#(x6c|108);)',
+        'o': r'(o|&#(x6f|111);|&o(acute|grave|circ|tilde|uml);)',
+        'p': r'(p|&#(x70|112);)',
+        'r': r'(r|&#(x72|114);)',
+        's': r'(s|&#(x73|115);)',
+        't': r'(t|&#(x74|116);)',
+        'u': r'(u|&#(x75|117);|&u(acute|grave|circ|uml);)',
+        'v': r'(v|&#(x76|118);)',
+    }
+
+    protocol_patterns = []
+    for p in protocols:
+        # Build a pattern that allows whitespace between characters and handles entities
+        pattern_parts = []
+        for char in p:
+            if char in char_map:
+                pattern_parts.append(char_map[char])
+            else:
+                pattern_parts.append(re.escape(char))
+
+        protocol_patterns.append(r"[\s\x00-\x1F]*".join(pattern_parts))
+
+    combined_pattern = f"({'|'.join(protocol_patterns)})"
+
+    # Match various colon representations: literal, encoded, or entities
+    colon_pattern = r"[\s\x00-\x1F]*(:|&#x3a;|&#58;|%3a|&colon;)"
+
+    sanitized_text = re.sub(
+        combined_pattern + colon_pattern,
+        lambda m: f"blocked-{m.group(1)}{m.group(m.lastindex)}",
         text,
         flags=re.IGNORECASE,
     )
 
-    return text
+    return sanitized_text
 
 
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
@@ -124,17 +178,15 @@ def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
         context = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
 
     # Security: Sanitize input to prevent prompt injection by escaping Mistral instruction tags.
-    # We escape both [INST] and [/INST] using case-insensitive regex to handle variations.
-    inst_pattern = re.compile(r'\[/?INST\]', re.IGNORECASE)
-
+    # We escape both [INST] and [/INST] using case-insensitive regex (RE_INST_TAG) to handle variations.
     def escape_tag(match):
         tag = match.group(0)
-        if tag.startswith('[/'):
+        if tag.startswith("[/"):
             return tag[:2] + " " + tag[2:]
         return tag[:1] + " " + tag[1:]
 
-    safe_query = inst_pattern.sub(escape_tag, query)
-    safe_context = inst_pattern.sub(escape_tag, context)
+    safe_query = RE_INST_TAG.sub(escape_tag, query)
+    safe_context = RE_INST_TAG.sub(escape_tag, context)
 
     # Security Enhancement: Use Mistral-style [INST] tags and clear delimiters to help the model
     # distinguish between instructions and data, mitigating prompt injection risks.

@@ -554,8 +554,6 @@ if submit_button:
             with st.spinner("Searching transcripts and generating response..."):
                 try:
                     answer, context = bot.answer_query(query)
-                    # Optimized: Sanitize user query once before storing to history,
-                    # reducing CPU overhead during subsequent UI reruns.
                     # Optimized: Pre-join context for download button to avoid reconstruction on every rerun.
                     context_full_text = "\n\n".join(
                         [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -573,6 +571,18 @@ if submit_button:
                         'expander_label': expander_label,
                         'timestamp': time.strftime("%H:%M")
                     })
+                    # Optimized: Sanitize user query once before storing to history,
+                    # reducing CPU overhead during subsequent UI reruns.
+                    st.session_state["chat_history"].append(
+                        {
+                            "query": bot.sanitize_markdown(query),
+                            "answer": answer,
+                            "context": context,
+                            "context_full_text": context_full_text,
+                            "expander_label": expander_label,
+                            "timestamp": time.strftime("%H:%M"),
+                        }
+                    )
                     st.toast("Response generated!", icon="💬")
                 except Exception as e:
                     # Security: Mask raw exception details and log to server
@@ -635,7 +645,6 @@ if not st.session_state["chat_history"]:
                 with st.spinner(f"Generating response for: {suggestion}..."):
                     try:
                         answer, context = bot.answer_query(suggestion)
-                        # Optimized: Sanitize suggestion once before storing.
                         # Optimized: Pre-join context for download button.
                         context_full_text = "\n\n".join(
                             [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -652,6 +661,17 @@ if not st.session_state["chat_history"]:
                             'expander_label': expander_label,
                             'timestamp': time.strftime("%H:%M")
                         })
+                        # Optimized: Sanitize suggestion once before storing.
+                        st.session_state["chat_history"].append(
+                            {
+                                "query": bot.sanitize_markdown(suggestion),
+                                "answer": answer,
+                                "context": context,
+                                "context_full_text": context_full_text,
+                                "expander_label": expander_label,
+                                "timestamp": time.strftime("%H:%M"),
+                            }
+                        )
                         st.toast("Response generated!", icon="💬")
                         st.rerun()
                     except Exception as e:
@@ -674,31 +694,10 @@ else:
             if ts:
                 st.caption(f"Response at {ts}")
 
-            # Optimized: Use structured context list directly to find unique sources
-            # instead of redundant string splitting and parsing on every rerun.
-            context_data = chat["context"]
-            sources = sorted(list(set(c["source"] for c in context_data)))
-            # Security: Sanitize source names before constructing the label to prevent Markdown injection
-            source_names = ", ".join([bot.sanitize_markdown(s) for s in sources])
-            unique_sources = sorted(list(set(c["source"] for c in context_data)))
-
-            # Security: Sanitize source names before constructing the label to prevent Markdown injection
-            safe_sources = [bot.sanitize_markdown(s) for s in unique_sources]
-            source_names = ", ".join(safe_sources)
-
-            # Truncate source names if they are too long for the label
-            if len(source_names) > 60:
-                source_names = source_names[:57] + "..."
-
-            source_count = len(unique_sources)
-            source_text = "source" if source_count == 1 else "sources"
-            expander_label = f"🔍 Show context from {source_count} {source_text}"
-            if unique_sources:
-                expander_label += f": {source_names}"
             # Optimized: Use pre-calculated expander label from session state
             # to avoid redundant set operations and sorting on every rerun.
             context_data = chat["context"]
-            expander_label = chat.get('expander_label')
+            expander_label = chat.get("expander_label")
 
             # Fallback for old sessions if necessary
             if not expander_label:
