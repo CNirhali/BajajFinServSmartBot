@@ -106,16 +106,56 @@ def sanitize_markdown(text):
     text = re.sub(r"!+\[", "[", text)
 
     # Security Enhancement: Neutralizing malicious protocols in links to prevent XSS.
-    # It handles javascript:, vbscript:, data:, file:, resource:, and blob: protocols.
-    # We also match common encoded colon representations (:, &#x3a;, &#58;, %3a) to prevent bypasses.
-    text = re.sub(
-        r"(javascript|vbscript|data|file|resource|blob)\s*(:|&#x3a;|&#58;|%3a)",
-        r"blocked-\1\2",
+    # We use a more aggressive regex to catch internal whitespace in protocols.
+    # We also handle several common HTML entities directly in the regex to avoid
+    # unescaping the whole string and potentially re-introducing HTML XSS.
+    protocols = ['javascript', 'vbscript', 'data', 'file', 'resource', 'blob']
+
+    # Character maps for common obfuscations
+    char_map = {
+        'a': r'(a|&#(x61|97);|&a(acute|grave|circ|tilde|uml);)',
+        'b': r'(b|&#(x62|98);)',
+        'c': r'(c|&#(x63|99);)',
+        'd': r'(d|&#(x64|100);)',
+        'e': r'(e|&#(x65|101);|&e(acute|grave|circ|uml);)',
+        'f': r'(f|&#(x66|102);)',
+        'i': r'(i|&#(x69|105);|&i(acute|grave|circ|uml);)',
+        'j': r'(j|&#(x6a|106);)',
+        'l': r'(l|&#(x6c|108);)',
+        'o': r'(o|&#(x6f|111);|&o(acute|grave|circ|tilde|uml);)',
+        'p': r'(p|&#(x70|112);)',
+        'r': r'(r|&#(x72|114);)',
+        's': r'(s|&#(x73|115);)',
+        't': r'(t|&#(x74|116);)',
+        'u': r'(u|&#(x75|117);|&u(acute|grave|circ|uml);)',
+        'v': r'(v|&#(x76|118);)',
+    }
+
+    protocol_patterns = []
+    for p in protocols:
+        # Build a pattern that allows whitespace between characters and handles entities
+        pattern_parts = []
+        for char in p:
+            if char in char_map:
+                pattern_parts.append(char_map[char])
+            else:
+                pattern_parts.append(re.escape(char))
+
+        protocol_patterns.append(r"[\s\x00-\x1F]*".join(pattern_parts))
+
+    combined_pattern = f"({'|'.join(protocol_patterns)})"
+
+    # Match various colon representations: literal, encoded, or entities
+    colon_pattern = r"[\s\x00-\x1F]*(:|&#x3a;|&#58;|%3a|&colon;)"
+
+    sanitized_text = re.sub(
+        combined_pattern + colon_pattern,
+        lambda m: f"blocked-{m.group(1)}{m.group(m.lastindex)}",
         text,
         flags=re.IGNORECASE,
     )
 
-    return text
+    return sanitized_text
 
 
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
