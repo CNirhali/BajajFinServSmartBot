@@ -68,3 +68,7 @@
 
 **Learning:** `ProcessPoolExecutor` has a non-negligible overhead (~1.5s). Parallelizing a single CPU-bound task (like parsing one PDF) is actually slower than sequential execution.
 **Action:** Implement conditional parallelization: only spawn process pools when multiple independent heavy tasks are present.
+
+## 2025-05-26 - Pre-calculating UI Metadata in Streamlit
+**Learning:** In Streamlit, any logic placed directly in the main rendering loop (like parsing chat history to generate labels) is executed on every user interaction. As history grows, this $O(N \times M)$ processing becomes a significant bottleneck.
+**Action:** Pre-calculate all UI-specific metadata (e.g., formatted source labels, sanitized queries) at the time of data creation and store it alongside the data in `st.session_state`. This reduces the rendering loop to a simple $O(N)$ display task.

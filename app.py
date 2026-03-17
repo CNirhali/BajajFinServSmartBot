@@ -11,6 +11,7 @@ from collections import defaultdict
 
 st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
+
 @st.cache_data(show_spinner=False)
 def get_knowledge_base_details():
     """
@@ -137,7 +138,7 @@ st.markdown("# 🤖 Bajaj Finserv SmartBot")
 h1, h2 = st.columns([0.7, 0.3])
 with h1:
     st.markdown(f"""
-    :grey[🟢 Assistant Ready] | :grey[🕒 Last updated: {last_updated}]
+    :green[🟢 Assistant Ready] | :grey[🕒 Last updated: {last_updated}]
 
     **Knowledge Base:** :blue[{pdf_count} PDF Documents] | :green[{csv_count} CSV Data Files]
 
@@ -196,7 +197,9 @@ with st.expander("⚙️ System Administration"):
                 st.write("Searching for documents...")
                 # Optimized: Call function directly and share embedding model to save ~5-10s startup/loading time.
                 # Optimized: Explicitly pass force=True to perform a full re-index as requested by the user.
-                num_chunks = data_ingest.run_ingestion(model=bot.get_embedder(), force=True)
+                num_chunks = data_ingest.run_ingestion(
+                    model=bot.get_embedder(), force=True
+                )
                 # Optimized: Clear query and answer caches after re-indexing to ensure fresh results.
                 bot.clear_caches()
                 # Optimized: Clear knowledge base details cache to reflect changes in the UI.
@@ -257,7 +260,9 @@ if uploaded_files:
 
             # Security Enhancement: Limit filename length to prevent filesystem-related issues or DoS.
             if len(safe_filename) > 255:
-                st.error(f"Skipping {uploaded_file.name}: Filename exceeds 255 character limit.")
+                st.error(
+                    f"Skipping {uploaded_file.name}: Filename exceeds 255 character limit."
+                )
                 continue
 
             file_path = os.path.join(DATA_DIR, safe_filename)
@@ -402,12 +407,16 @@ if bfs_path and sensex_path:
                     f"₹{latest_bfs:,.2f}",
                     f"{bfs_delta:+,.2f} ({bfs_pct_delta:+,.2f}%)",
                     help="Closing price of Bajaj Finserv stock and change from the previous trading session."
+                    f"{bfs_delta:+,.2f}",
+                    help="Closing price of Bajaj Finserv stock and change from the previous trading session.",
                 )
                 m2.metric(
                     "Latest Sensex Close",
                     f"{latest_sensex:,.2f}",
                     f"{sensex_delta:+,.2f} ({sensex_pct_delta:+,.2f}%)",
                     help="Closing value of the BSE Sensex and change from the previous trading session."
+                    f"{sensex_delta:+,.2f}",
+                    help="Closing value of the BSE Sensex and change from the previous trading session.",
                 )
                 st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
                 st.caption(
@@ -532,12 +541,30 @@ if submit_button:
                     # Optimized: Sanitize user query once before storing to history,
                     # reducing CPU overhead during subsequent UI reruns.
                     # Optimized: Pre-join context for download button to avoid reconstruction on every rerun.
+                    context_full_text = "\n\n".join(
+                        [f"Source: {c['source']}\n{c['text']}" for c in context]
+                    )
+                    st.session_state["chat_history"].append(
+                        {
+                            "query": bot.sanitize_markdown(query),
+                            "answer": answer,
+                            "context": context,
+                            "context_full_text": context_full_text,
+                            "timestamp": time.strftime("%H:%M"),
+                        }
+                    )
                     context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+
+                    # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
+                    # to eliminate redundant processing during every Streamlit rerun.
+                    expander_label, _ = bot.format_source_label(context)
+
                     st.session_state['chat_history'].append({
                         'query': bot.sanitize_markdown(query),
                         'answer': answer,
                         'context': context,
                         'context_full_text': context_full_text,
+                        'expander_label': expander_label,
                         'timestamp': time.strftime("%H:%M")
                     })
                     st.toast("Response generated!", icon="💬")
@@ -554,9 +581,18 @@ if submit_button:
 st.markdown("## 🗂️ Chat History")
 
 if not st.session_state["chat_history"]:
-    st.info(
-        "👋 **No questions yet!** Ask me anything about Bajaj Finserv earnings or market trends to get started."
-    )
+    with st.chat_message("assistant", avatar="🤖"):
+        st.markdown("""
+        👋 **Welcome! I'm your Bajaj Finserv SmartBot.**
+
+        I can help you analyze Earnings Call Transcripts and financial data. Ask me about:
+        - **Key financial highlights** from recent quarters.
+        - **Stock price trends** and market performance.
+        - **Future guidance** and management outlook.
+
+        To get started, try one of the suggestions below or type your own question above!
+        """)
+
     st.markdown("### 💡 Quick Start Suggestions")
 
     suggestions = [
@@ -595,12 +631,29 @@ if not st.session_state["chat_history"]:
                         answer, context = bot.answer_query(suggestion)
                         # Optimized: Sanitize suggestion once before storing.
                         # Optimized: Pre-join context for download button.
+                        context_full_text = "\n\n".join(
+                            [f"Source: {c['source']}\n{c['text']}" for c in context]
+                        )
+                        st.session_state["chat_history"].append(
+                            {
+                                "query": bot.sanitize_markdown(suggestion),
+                                "answer": answer,
+                                "context": context,
+                                "context_full_text": context_full_text,
+                                "timestamp": time.strftime("%H:%M"),
+                            }
+                        )
                         context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+
+                        # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
+                        expander_label, _ = bot.format_source_label(context)
+
                         st.session_state['chat_history'].append({
                             'query': bot.sanitize_markdown(suggestion),
                             'answer': answer,
                             'context': context,
                             'context_full_text': context_full_text,
+                            'expander_label': expander_label,
                             'timestamp': time.strftime("%H:%M")
                         })
                         st.toast("Response generated!", icon="💬")
@@ -625,16 +678,16 @@ else:
             st.session_state["chat_history"] = []
             st.rerun()
 
-    for i, chat in enumerate(reversed(st.session_state['chat_history'])):
-        ts = chat.get('timestamp', '')
+    for i, chat in enumerate(reversed(st.session_state["chat_history"])):
+        ts = chat.get("timestamp", "")
         with st.chat_message("user", avatar="👤"):
             # Optimized: User query is already sanitized before storage.
-            st.markdown(chat['query'])
+            st.markdown(chat["query"])
             if ts:
                 st.caption(f"Sent at {ts}")
 
         with st.chat_message("assistant", avatar="🤖"):
-            st.markdown(chat['answer'])
+            st.markdown(chat["answer"])
             if ts:
                 st.caption(f"Response at {ts}")
 
@@ -644,20 +697,35 @@ else:
             sources = sorted(list(set(c["source"] for c in context_data)))
             # Security: Sanitize source names before constructing the label to prevent Markdown injection
             source_names = ", ".join([bot.sanitize_markdown(s) for s in sources])
+            unique_sources = sorted(list(set(c["source"] for c in context_data)))
+
+            # Security: Sanitize source names before constructing the label to prevent Markdown injection
+            safe_sources = [bot.sanitize_markdown(s) for s in unique_sources]
+            source_names = ", ".join(safe_sources)
 
             # Truncate source names if they are too long for the label
             if len(source_names) > 60:
                 source_names = source_names[:57] + "..."
 
-            expander_label = f"🔍 Show context from {len(sources)} sources"
-            if sources:
+            source_count = len(unique_sources)
+            source_text = "source" if source_count == 1 else "sources"
+            expander_label = f"🔍 Show context from {source_count} {source_text}"
+            if unique_sources:
                 expander_label += f": {source_names}"
+            # Optimized: Use pre-calculated expander label from session state
+            # to avoid redundant set operations and sorting on every rerun.
+            context_data = chat["context"]
+            expander_label = chat.get('expander_label')
+
+            # Fallback for old sessions if necessary
+            if not expander_label:
+                expander_label, _ = bot.format_source_label(context_data)
 
             with st.expander(expander_label, expanded=False):
                 # Optimized: Use the structured context list for efficient grouping and rendering.
                 grouped_context = defaultdict(list)
                 for item in context_data:
-                    grouped_context[item['source']].append(item['text'])
+                    grouped_context[item["source"]].append(item["text"])
 
                 for src in sorted(grouped_context.keys()):
                     # Security: Sanitize source name before rendering.
@@ -667,9 +735,11 @@ else:
 
                 # Download button for answer and context
                 # Optimized: Use pre-joined context string from session state.
-                context_str = chat.get('context_full_text', "")
+                context_str = chat.get("context_full_text", "")
                 if not context_str:
-                    context_str = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context_data])
+                    context_str = "\n\n".join(
+                        [f"Source: {c['source']}\n{c['text']}" for c in context_data]
+                    )
 
                 download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{context_str}"
                 st.download_button(
