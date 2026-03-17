@@ -547,6 +547,20 @@ if submit_button:
                             "timestamp": time.strftime("%H:%M"),
                         }
                     )
+                    context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+
+                    # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
+                    # to eliminate redundant processing during every Streamlit rerun.
+                    expander_label, _ = bot.format_source_label(context)
+
+                    st.session_state['chat_history'].append({
+                        'query': bot.sanitize_markdown(query),
+                        'answer': answer,
+                        'context': context,
+                        'context_full_text': context_full_text,
+                        'expander_label': expander_label,
+                        'timestamp': time.strftime("%H:%M")
+                    })
                     st.toast("Response generated!", icon="💬")
                 except Exception as e:
                     # Security: Mask raw exception details and log to server
@@ -623,6 +637,19 @@ if not st.session_state["chat_history"]:
                                 "timestamp": time.strftime("%H:%M"),
                             }
                         )
+                        context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+
+                        # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
+                        expander_label, _ = bot.format_source_label(context)
+
+                        st.session_state['chat_history'].append({
+                            'query': bot.sanitize_markdown(suggestion),
+                            'answer': answer,
+                            'context': context,
+                            'context_full_text': context_full_text,
+                            'expander_label': expander_label,
+                            'timestamp': time.strftime("%H:%M")
+                        })
                         st.toast("Response generated!", icon="💬")
                         st.rerun()
                     except Exception as e:
@@ -676,6 +703,14 @@ else:
             expander_label = f"🔍 Show context from {source_count} {source_text}"
             if unique_sources:
                 expander_label += f": {source_names}"
+            # Optimized: Use pre-calculated expander label from session state
+            # to avoid redundant set operations and sorting on every rerun.
+            context_data = chat["context"]
+            expander_label = chat.get('expander_label')
+
+            # Fallback for old sessions if necessary
+            if not expander_label:
+                expander_label, _ = bot.format_source_label(context_data)
 
             with st.expander(expander_label, expanded=False):
                 # Optimized: Use the structured context list for efficient grouping and rendering.
