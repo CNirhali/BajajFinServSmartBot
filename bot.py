@@ -13,6 +13,17 @@ MISTRAL_MODEL = 'mistral'  # Change if your model name is different
 _embedder = None
 _collection = None
 
+# Pre-compiled regex patterns for performance
+# Used in sanitize_markdown to prevent data exfiltration via image tags
+RE_MD_IMAGE = re.compile(r"!+\[")
+# Used in sanitize_markdown to neutralize dangerous URI protocols
+RE_DANGEROUS_PROTOCOL = re.compile(
+    r"(javascript|vbscript|data|file|resource|blob)\s*(:|&#x3a;|&#58;|%3a)",
+    re.IGNORECASE,
+)
+# Used in ask_mistral_ollama to escape Mistral instruction tags
+RE_INST_TAG = re.compile(r"\[/?INST\]", re.IGNORECASE)
+
 
 def get_embedder():
     """Returns the pre-loaded embedding model, initializing it on first call."""
@@ -102,18 +113,13 @@ def sanitize_markdown(text):
     """
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
-    # We use re.sub to handle multiple exclamation marks (e.g., !![) that could bypass a simple replace.
-    text = re.sub(r"!+\[", "[", text)
+    # We use RE_MD_IMAGE to handle multiple exclamation marks (e.g., !![) that could bypass a simple replace.
+    text = RE_MD_IMAGE.sub("[", text)
 
     # Security Enhancement: Neutralizing malicious protocols in links to prevent XSS.
     # It handles javascript:, vbscript:, data:, file:, resource:, and blob: protocols.
     # We also match common encoded colon representations (:, &#x3a;, &#58;, %3a) to prevent bypasses.
-    text = re.sub(
-        r"(javascript|vbscript|data|file|resource|blob)\s*(:|&#x3a;|&#58;|%3a)",
-        r"blocked-\1\2",
-        text,
-        flags=re.IGNORECASE,
-    )
+    text = RE_DANGEROUS_PROTOCOL.sub(r"blocked-\1\2", text)
 
     return text
 
@@ -124,17 +130,15 @@ def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
         context = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
 
     # Security: Sanitize input to prevent prompt injection by escaping Mistral instruction tags.
-    # We escape both [INST] and [/INST] using case-insensitive regex to handle variations.
-    inst_pattern = re.compile(r'\[/?INST\]', re.IGNORECASE)
-
+    # We escape both [INST] and [/INST] using case-insensitive regex (RE_INST_TAG) to handle variations.
     def escape_tag(match):
         tag = match.group(0)
-        if tag.startswith('[/'):
+        if tag.startswith("[/"):
             return tag[:2] + " " + tag[2:]
         return tag[:1] + " " + tag[1:]
 
-    safe_query = inst_pattern.sub(escape_tag, query)
-    safe_context = inst_pattern.sub(escape_tag, context)
+    safe_query = RE_INST_TAG.sub(escape_tag, query)
+    safe_context = RE_INST_TAG.sub(escape_tag, context)
 
     # Security Enhancement: Use Mistral-style [INST] tags and clear delimiters to help the model
     # distinguish between instructions and data, mitigating prompt injection risks.

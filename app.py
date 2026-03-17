@@ -406,16 +406,12 @@ if bfs_path and sensex_path:
                     "Latest BFS Close",
                     f"₹{latest_bfs:,.2f}",
                     f"{bfs_delta:+,.2f} ({bfs_pct_delta:+,.2f}%)",
-                    help="Closing price of Bajaj Finserv stock and change from the previous trading session."
-                    f"{bfs_delta:+,.2f}",
                     help="Closing price of Bajaj Finserv stock and change from the previous trading session.",
                 )
                 m2.metric(
                     "Latest Sensex Close",
                     f"{latest_sensex:,.2f}",
                     f"{sensex_delta:+,.2f} ({sensex_pct_delta:+,.2f}%)",
-                    help="Closing value of the BSE Sensex and change from the previous trading session."
-                    f"{sensex_delta:+,.2f}",
                     help="Closing value of the BSE Sensex and change from the previous trading session.",
                 )
                 st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
@@ -544,17 +540,6 @@ if submit_button:
                     context_full_text = "\n\n".join(
                         [f"Source: {c['source']}\n{c['text']}" for c in context]
                     )
-                    st.session_state["chat_history"].append(
-                        {
-                            "query": bot.sanitize_markdown(query),
-                            "answer": answer,
-                            "context": context,
-                            "context_full_text": context_full_text,
-                            "timestamp": time.strftime("%H:%M"),
-                        }
-                    )
-                    context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
-
                     # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
                     # to eliminate redundant processing during every Streamlit rerun.
                     expander_label, _ = bot.format_source_label(context)
@@ -634,17 +619,6 @@ if not st.session_state["chat_history"]:
                         context_full_text = "\n\n".join(
                             [f"Source: {c['source']}\n{c['text']}" for c in context]
                         )
-                        st.session_state["chat_history"].append(
-                            {
-                                "query": bot.sanitize_markdown(suggestion),
-                                "answer": answer,
-                                "context": context,
-                                "context_full_text": context_full_text,
-                                "timestamp": time.strftime("%H:%M"),
-                            }
-                        )
-                        context_full_text = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
-
                         # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
                         expander_label, _ = bot.format_source_label(context)
 
@@ -691,31 +665,10 @@ else:
             if ts:
                 st.caption(f"Response at {ts}")
 
-            # Optimized: Use structured context list directly to find unique sources
-            # instead of redundant string splitting and parsing on every rerun.
-            context_data = chat["context"]
-            sources = sorted(list(set(c["source"] for c in context_data)))
-            # Security: Sanitize source names before constructing the label to prevent Markdown injection
-            source_names = ", ".join([bot.sanitize_markdown(s) for s in sources])
-            unique_sources = sorted(list(set(c["source"] for c in context_data)))
-
-            # Security: Sanitize source names before constructing the label to prevent Markdown injection
-            safe_sources = [bot.sanitize_markdown(s) for s in unique_sources]
-            source_names = ", ".join(safe_sources)
-
-            # Truncate source names if they are too long for the label
-            if len(source_names) > 60:
-                source_names = source_names[:57] + "..."
-
-            source_count = len(unique_sources)
-            source_text = "source" if source_count == 1 else "sources"
-            expander_label = f"🔍 Show context from {source_count} {source_text}"
-            if unique_sources:
-                expander_label += f": {source_names}"
             # Optimized: Use pre-calculated expander label from session state
             # to avoid redundant set operations and sorting on every rerun.
             context_data = chat["context"]
-            expander_label = chat.get('expander_label')
+            expander_label = chat.get("expander_label")
 
             # Fallback for old sessions if necessary
             if not expander_label:
