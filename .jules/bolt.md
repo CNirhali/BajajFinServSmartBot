@@ -72,3 +72,7 @@
 ## 2025-05-26 - Pre-calculating UI Metadata in Streamlit
 **Learning:** In Streamlit, any logic placed directly in the main rendering loop (like parsing chat history to generate labels) is executed on every user interaction. As history grows, this $O(N \times M)$ processing becomes a significant bottleneck.
 **Action:** Pre-calculate all UI-specific metadata (e.g., formatted source labels, sanitized queries) at the time of data creation and store it alongside the data in `st.session_state`. This reduces the rendering loop to a simple $O(N)$ display task.
+
+## 2026-03-18 - UI Context Pre-processing in Streamlit
+**Learning:** Rendering complex RAG context (grouping chunks by source, sanitizing names, adding icons) in the Streamlit rendering loop leads to $O(N \times M)$ overhead that compounds as chat history grows. Even with cached retrieval, the UI processing itself becomes a bottleneck.
+**Action:** Pre-group, sanitize, and format the entire RAG context into a `ui_context` object (list of pre-formatted source blocks) at message creation. The rendering loop should only iterate and display these static blocks, ensuring constant-time UI updates regardless of document complexity.
