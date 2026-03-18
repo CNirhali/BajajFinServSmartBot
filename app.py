@@ -133,6 +133,28 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
+    st.markdown("### 📥 Session Export")
+    chat_history = st.session_state.get("chat_history", [])
+    if chat_history:
+        export_text = "=== Bajaj Finserv SmartBot Session Export ===\n\n"
+        for i, chat in enumerate(chat_history):
+            export_text += f"--- Interaction {i+1} ---\n"
+            export_text += f"Timestamp: {chat.get('timestamp', 'N/A')}\n"
+            export_text += f"User: {chat['query']}\n"
+            export_text += f"Assistant: {chat['answer']}\n\n"
+
+        st.download_button(
+            label="📥 Download Full Conversation",
+            data=export_text,
+            file_name=f"smartbot_session_{time.strftime('%Y%m%d_%H%M%S')}.txt",
+            mime="text/plain",
+            help="Download all interactions from this session as a text file.",
+            use_container_width=True,
+        )
+    else:
+        st.info("No chat history to download yet.")
+
+    st.markdown("---")
     if st.button(
         "🔒 Logout",
         help="Securely end your session and clear all temporary data.",
@@ -411,7 +433,9 @@ if bfs_path and sensex_path:
                 merged["Sensex Close"].iloc[-2] if len(merged) > 1 else latest_sensex
             )
             sensex_delta = latest_sensex - prev_sensex
-            sensex_pct_delta = (sensex_delta / prev_sensex * 100) if prev_sensex != 0 else 0
+            sensex_pct_delta = (
+                (sensex_delta / prev_sensex * 100) if prev_sensex != 0 else 0
+            )
 
             latest_date = merged["Date"].iloc[-1].strftime("%b %d, %Y")
 
@@ -563,16 +587,6 @@ if submit_button:
                     # to eliminate redundant processing during every Streamlit rerun.
                     expander_label, _ = bot.format_source_label(context)
 
-                    st.session_state["chat_history"].append({
-                        'query': bot.sanitize_markdown(query),
-                        'answer': answer,
-                        'context': context,
-                        'context_full_text': context_full_text,
-                        'expander_label': expander_label,
-                        'timestamp': time.strftime("%H:%M")
-                    })
-                    # Optimized: Sanitize user query once before storing to history,
-                    # reducing CPU overhead during subsequent UI reruns.
                     st.session_state["chat_history"].append(
                         {
                             "query": bot.sanitize_markdown(query),
@@ -594,7 +608,8 @@ if submit_button:
         st.warning("Please enter a question.")
 
 # --- Chat History ---
-st.markdown("## 🗂️ Chat History")
+history_count = len(st.session_state.get("chat_history", []))
+st.markdown(f"## 🗂️ Chat History ({history_count})")
 
 if not st.session_state["chat_history"]:
     with st.chat_message("assistant", avatar="🤖"):
@@ -653,15 +668,6 @@ if not st.session_state["chat_history"]:
                         # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
                         expander_label, _ = bot.format_source_label(context)
 
-                        st.session_state["chat_history"].append({
-                            'query': bot.sanitize_markdown(suggestion),
-                            'answer': answer,
-                            'context': context,
-                            'context_full_text': context_full_text,
-                            'expander_label': expander_label,
-                            'timestamp': time.strftime("%H:%M")
-                        })
-                        # Optimized: Sanitize suggestion once before storing.
                         st.session_state["chat_history"].append(
                             {
                                 "query": bot.sanitize_markdown(suggestion),
