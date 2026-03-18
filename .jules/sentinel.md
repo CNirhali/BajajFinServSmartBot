@@ -65,3 +65,8 @@
 **Prevention:**
 1. Sanitize ALL untrusted data before rendering in Markdown-capable UI components, including metadata like filenames.
 2. Always enforce response length limits (e.g., `num_predict` in Ollama) at the LLM API level.
+
+## 2026-03-20 - [Robust Protocol Sanitization and HTML Entity Bypasses]
+**Vulnerability:** XSS bypasses in Markdown protocol neutralization using various HTML entity representations (hex, decimal, padded, and case-insensitive hex).
+**Learning:** Simple character maps or literal checks for dangerous protocols like `javascript:` are easily bypassed. Attackers can use `&#x41;` (uppercase hex), `&#097;` (padded decimal), or `&#x0061;` (padded hex) for any character in the protocol name. Furthermore, the colon itself can be represented as `&colon;`, `&#x3a;`, etc.
+**Prevention:** Use a dynamically generated, robust regex that accounts for all variations of every character in blocked protocols. This includes literal characters (case-insensitive), decimal entities with optional zero-padding, and hex entities with optional zero-padding and case-insensitive 'x' and hex digits.
