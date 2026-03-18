@@ -563,15 +563,22 @@ if submit_button:
                     # to eliminate redundant processing during every Streamlit rerun.
                     expander_label, _ = bot.format_source_label(context)
 
-                    st.session_state["chat_history"].append({
-                        'query': bot.sanitize_markdown(query),
-                        'answer': answer,
-                        'context': context,
-                        'context_full_text': context_full_text,
-                        'expander_label': expander_label,
-                        'timestamp': time.strftime("%H:%M")
-                    })
-                    # Optimized: Sanitize user query once before storing to history,
+                    # Optimized: Group and sanitize context for UI rendering once.
+                    grouped_context = defaultdict(list)
+                    for item in context:
+                        grouped_context[item["source"]].append(item["text"])
+
+                    ui_context = []
+                    for src in sorted(grouped_context.keys()):
+                        icon = "📊" if src.lower().endswith(".csv") else "📄"
+                        ui_context.append(
+                            {
+                                "source_label": f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]",
+                                "content": "\n\n".join(grouped_context[src]),
+                            }
+                        )
+
+                    # Optimized: Pre-calculate UI metadata and sanitize user query once before storing to history,
                     # reducing CPU overhead during subsequent UI reruns.
                     st.session_state["chat_history"].append(
                         {
@@ -580,6 +587,7 @@ if submit_button:
                             "context": context,
                             "context_full_text": context_full_text,
                             "expander_label": expander_label,
+                            "ui_context": ui_context,
                             "timestamp": time.strftime("%H:%M"),
                         }
                     )
@@ -653,15 +661,22 @@ if not st.session_state["chat_history"]:
                         # Optimized: Pre-calculate UI metadata (sorted sources and expander label)
                         expander_label, _ = bot.format_source_label(context)
 
-                        st.session_state["chat_history"].append({
-                            'query': bot.sanitize_markdown(suggestion),
-                            'answer': answer,
-                            'context': context,
-                            'context_full_text': context_full_text,
-                            'expander_label': expander_label,
-                            'timestamp': time.strftime("%H:%M")
-                        })
-                        # Optimized: Sanitize suggestion once before storing.
+                        # Optimized: Group and sanitize context for UI rendering once.
+                        grouped_context = defaultdict(list)
+                        for item in context:
+                            grouped_context[item["source"]].append(item["text"])
+
+                        ui_context = []
+                        for src in sorted(grouped_context.keys()):
+                            icon = "📊" if src.lower().endswith(".csv") else "📄"
+                            ui_context.append(
+                                {
+                                    "source_label": f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]",
+                                    "content": "\n\n".join(grouped_context[src]),
+                                }
+                            )
+
+                        # Optimized: Pre-calculate UI metadata and sanitize suggestion once before storing to history.
                         st.session_state["chat_history"].append(
                             {
                                 "query": bot.sanitize_markdown(suggestion),
@@ -669,6 +684,7 @@ if not st.session_state["chat_history"]:
                                 "context": context,
                                 "context_full_text": context_full_text,
                                 "expander_label": expander_label,
+                                "ui_context": ui_context,
                                 "timestamp": time.strftime("%H:%M"),
                             }
                         )
@@ -704,19 +720,25 @@ else:
                 expander_label, _ = bot.format_source_label(context_data)
 
             with st.expander(expander_label, expanded=False):
-                # Optimized: Use the structured context list for efficient grouping and rendering.
-                grouped_context = defaultdict(list)
-                for item in context_data:
-                    grouped_context[item["source"]].append(item["text"])
+                # Optimized: Use pre-calculated ui_context for efficient rendering,
+                # avoiding redundant grouping, sorting, and sanitization on every rerun.
+                ui_context = chat.get("ui_context")
+                if ui_context:
+                    for entry in ui_context:
+                        st.markdown(entry["source_label"])
+                        st.code(entry["content"], language=None)
+                else:
+                    # Fallback for old sessions if ui_context is missing
+                    grouped_context = defaultdict(list)
+                    for item in context_data:
+                        grouped_context[item["source"]].append(item["text"])
 
-                for src in sorted(grouped_context.keys()):
-                    # Security: Sanitize source name before rendering.
-                    # Affordance: Add icons to sources for quicker identification.
-                    icon = "📊" if src.lower().endswith(".csv") else "📄"
-                    st.markdown(
-                        f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]"
-                    )
-                    st.code("\n\n".join(grouped_context[src]), language=None)
+                    for src in sorted(grouped_context.keys()):
+                        icon = "📊" if src.lower().endswith(".csv") else "📄"
+                        st.markdown(
+                            f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]"
+                        )
+                        st.code("\n\n".join(grouped_context[src]), language=None)
 
                 # Download button for answer and context
                 # Optimized: Use pre-joined context string from session state.
