@@ -16,53 +16,50 @@ _collection = None
 # Pre-compiled regex patterns for performance
 # Used in sanitize_markdown to prevent data exfiltration via image tags
 RE_MD_IMAGE = re.compile(r"!+\[")
-# Used in sanitize_markdown to neutralize dangerous URI protocols
-RE_DANGEROUS_PROTOCOL = re.compile(
-    r"(javascript|vbscript|data|file|resource|blob)\s*(:|&#x3a;|&#58;|%3a)",
-    re.IGNORECASE,
-)
 # Used in ask_mistral_ollama to escape Mistral instruction tags
 RE_INST_TAG = re.compile(r"\[/?INST\]", re.IGNORECASE)
 
 # Protocols to block in markdown links for security
 PROTOCOLS = ['javascript', 'vbscript', 'data', 'file', 'resource', 'blob']
 
-# Character maps for common obfuscations used in protocol patterns
-CHAR_MAP = {
-    'a': r'(a|&#(x61|97);|&a(acute|grave|circ|tilde|uml);)',
-    'b': r'(b|&#(x62|98);)',
-    'c': r'(c|&#(x63|99);)',
-    'd': r'(d|&#(x64|100);)',
-    'e': r'(e|&#(x65|101);|&e(acute|grave|circ|uml);)',
-    'f': r'(f|&#(x66|102);)',
-    'i': r'(i|&#(x69|105);|&i(acute|grave|circ|uml);)',
-    'j': r'(j|&#(x6a|106);)',
-    'l': r'(l|&#(x6c|108);)',
-    'o': r'(o|&#(x6f|111);|&o(acute|grave|circ|tilde|uml);)',
-    'p': r'(p|&#(x70|112);)',
-    'r': r'(r|&#(x72|114);)',
-    's': r'(s|&#(x73|115);)',
-    't': r'(t|&#(x74|116);)',
-    'u': r'(u|&#(x75|117);|&u(acute|grave|circ|uml);)',
-    'v': r'(v|&#(x76|118);)',
-}
-
 
 def _build_protocol_regex():
+    """
+    Builds a robust regex to detect dangerous URI protocols even with obfuscation
+    via internal whitespace, control characters, or various HTML entity formats.
+    """
     protocol_patterns = []
     for p in PROTOCOLS:
-        # Build a pattern that allows whitespace between characters and handles entities
         pattern_parts = []
         for char in p:
-            if char in CHAR_MAP:
-                pattern_parts.append(CHAR_MAP[char])
-            else:
-                pattern_parts.append(re.escape(char))
+            c_low = ord(char.lower())
+            c_up = ord(char.upper())
+            # Match character literally or as numeric entities (decimal/hex)
+            # handles optional padding and case-insensitive hex for both cases.
+            # e.g. for 'a': a, A, &#97;, &#097;, &#x61;, &#X0061;, &#65;, &#x41;
+            char_variants = [
+                re.escape(char.lower()),
+                re.escape(char.upper()),
+                f"&#0*{c_low};",
+                f"&#[xX]0*{c_low:x};",
+                f"&#0*{c_up};",
+                f"&#[xX]0*{c_up:x};",
+            ]
+            pattern_parts.append(f"(?:{'|'.join(char_variants)})")
+        # Allow whitespace and control characters between protocol characters
         protocol_patterns.append(r"[\s\x00-\x1F]*".join(pattern_parts))
 
-    combined_pattern = f"({'|'.join(protocol_patterns)})"
-    # Match various colon representations: literal, encoded, or entities
-    colon_pattern = r"[\s\x00-\x1F]*(:|&#x3a;|&#58;|%3a|&colon;)"
+    combined_pattern = f"(?:{'|'.join(protocol_patterns)})"
+    # Match various colon representations: literal, encoded, entities with padding/case-insensitivity
+    # e.g. :, %3a, &#x3a;, &#058;, &colon;
+    colon_variants = [
+        ":",
+        "%3a",
+        "&#0*58;",
+        "&#[xX]0*3a;",
+        "&colon;",
+    ]
+    colon_pattern = rf"[\s\x00-\x1F]*(?:{'|'.join(colon_variants)})"
     return re.compile(combined_pattern + colon_pattern, re.IGNORECASE)
 
 
@@ -163,17 +160,10 @@ def sanitize_markdown(text):
 
     # Security Enhancement: Neutralizing malicious protocols in links to prevent XSS.
     # It handles javascript:, vbscript:, data:, file:, resource:, and blob: protocols.
-    # We also match common encoded colon representations (:, &#x3a;, &#58;, %3a) to prevent bypasses.
-    # Optimized: We first use a simple regex for common cases, then a pre-compiled
-    # aggressive one for obfuscated protocols.
-    text = RE_DANGEROUS_PROTOCOL.sub(r"blocked-\1\2", text)
-
-    # Optimized: Use pre-compiled RE_PROTOCOL_SAN to neutralize obfuscated protocols
-    # (internal whitespace, HTML entities) without rebuilding the pattern on every call.
-    sanitized_text = RE_PROTOCOL_SAN.sub(
-        lambda m: f"blocked-{m.group(1)}{m.group(m.lastindex)}",
-        text,
-    )
+    # We use a robust, pre-compiled regex (RE_PROTOCOL_SAN) that handles common obfuscation
+    # techniques like internal whitespace, control characters, and various HTML entity formats.
+    # We prefix the matched protocol and colon with 'blocked-' to neutralize it.
+    sanitized_text = RE_PROTOCOL_SAN.sub(lambda m: f"blocked-{m.group(0)}", text)
 
     return sanitized_text
 
