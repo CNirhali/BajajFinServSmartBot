@@ -12,6 +12,19 @@ from collections import defaultdict
 st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
 
+def format_size(size_bytes):
+    """Converts bytes to human-readable format."""
+    if size_bytes == 0:
+        return "0B"
+    size_name = ("B", "KB", "MB", "GB")
+    import math
+
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return f"{s} {size_name[i]}"
+
+
 @st.cache_data(show_spinner=False)
 def get_knowledge_base_details():
     """
@@ -21,8 +34,21 @@ def get_knowledge_base_details():
     """
     disk_pdfs, disk_csvs = data_ingest.get_knowledge_base_files()
 
-    pdf_files = sorted(set(os.path.basename(p) for p in disk_pdfs))
-    csv_files = sorted(set(os.path.basename(p) for p in disk_csvs))
+    pdf_files = []
+    for p in sorted(disk_pdfs):
+        try:
+            size = os.path.getsize(p)
+            pdf_files.append({"name": os.path.basename(p), "size": format_size(size)})
+        except OSError:
+            pdf_files.append({"name": os.path.basename(p), "size": "Unknown"})
+
+    csv_files = []
+    for p in sorted(disk_csvs):
+        try:
+            size = os.path.getsize(p)
+            csv_files.append({"name": os.path.basename(p), "size": format_size(size)})
+        except OSError:
+            csv_files.append({"name": os.path.basename(p), "size": "Unknown"})
 
     # Calculate last updated time based on file modifications
     all_paths = disk_pdfs + disk_csvs
@@ -196,14 +222,22 @@ with h2:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown(f"**📄 PDFs ({pdf_count})**")
+            if not pdf_files:
+                st.caption(":grey[*No PDF documents indexed*]")
             for f in pdf_files:
                 # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
-                st.caption(f"📄 {bot.sanitize_markdown(f)}")
+                st.caption(
+                    f"📄 {bot.sanitize_markdown(f['name'])} :grey[({f['size']})]"
+                )
         with c2:
             st.markdown(f"**📊 CSVs ({csv_count})**")
+            if not csv_files:
+                st.caption(":grey[*No CSV data files indexed*]")
             for f in csv_files:
                 # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
-                st.caption(f"📊 {bot.sanitize_markdown(f)}")
+                st.caption(
+                    f"📊 {bot.sanitize_markdown(f['name'])} :grey[({f['size']})]"
+                )
 
 st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 
