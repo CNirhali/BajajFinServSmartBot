@@ -61,9 +61,15 @@ class TestSecurity(unittest.TestCase):
     def test_protocol_neutralization(self, mock_post):
         mock_post.return_value.status_code = 200
         # Simulated malicious LLM output trying to use various protocols for XSS
-        # including attempts to bypass using encoded colons.
+        # including attempts to bypass using encoded colons, missing semicolons, and whitespace obfuscation.
         mock_post.return_value.json.return_value = {
-            'response': 'Links: [js](javascript:a), [JS-WS](javascript :a), [vb](vbscript:a), [data](data:a), [file](file:///etc/passwd), [res](resource://a), [blob](blob:http://a), [encoded1](javascript&#x3a;a), [encoded2](javascript%3aa), [encoded3](javascript&#58;a)'
+            'response': (
+                'Links: [js](javascript:a), [JS-WS](javascript :a), [vb](vbscript:a), [data](data:a), '
+                '[file](file:///etc/passwd), [res](resource://a), [blob](blob:http://a), '
+                '[encoded1](javascript&#x3a;a), [encoded2](javascript%3aa), [encoded3](javascript&#58;a), '
+                '[no-semi1](javascript&#58a), [no-semi2](javascript&#x3aa), [newline](j&#x0A;avascript:a), '
+                '[tab](j&#9;avascript:a), [named-no-semi](javascript&colona)'
+            )
         }
 
         answer = ask_mistral_ollama("safe query", "safe context")
@@ -74,6 +80,11 @@ class TestSecurity(unittest.TestCase):
         self.assertIn("blocked-javascript&#x3a;a", answer)
         self.assertIn("blocked-javascript%3aa", answer)
         self.assertIn("blocked-javascript&#58;a", answer)
+        self.assertIn("blocked-javascript&#58a", answer)
+        self.assertIn("blocked-javascript&#x3aa", answer)
+        self.assertIn("blocked-j&#x0A;avascript:a", answer)
+        self.assertIn("blocked-j&#9;avascript:a", answer)
+        self.assertIn("blocked-javascript&colona", answer)
         self.assertIn("blocked-vbscript:a", answer)
         self.assertIn("blocked-data:a", answer)
         self.assertIn("blocked-file:///etc/passwd", answer)
@@ -81,7 +92,8 @@ class TestSecurity(unittest.TestCase):
         self.assertIn("blocked-blob:http://a", answer)
 
         # Verify no un-blocked instances remain
-        self.assertFalse(re.search(r'(?<!blocked-)(javascript|vbscript|data|file|resource|blob)\s*(:|&#x3a;|&#58;|%3a)', answer, re.IGNORECASE))
+        # The regex below checks for common protocol names followed by colon variations that are NOT prefixed with 'blocked-'
+        self.assertFalse(re.search(r'(?<!blocked-)(javascript|vbscript|data|file|resource|blob)(?:[\s\x00-\x1F]|&#0*(?:9|10|13|32);?|&#[xX]0*(?:9|[aA]|[dD]|20);?)*(:|&#0*58;?|&#[xX]0*3a;?|%3a|&colon;?)', answer, re.IGNORECASE))
 
 if __name__ == '__main__':
     unittest.main()

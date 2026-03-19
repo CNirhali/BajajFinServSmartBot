@@ -29,37 +29,42 @@ def _build_protocol_regex():
     via internal whitespace, control characters, or various HTML entity formats.
     """
     protocol_patterns = []
+    # Whitespace, control characters, and their HTML entity equivalents that can be used for obfuscation.
+    # e.g. \n, &#10;, &#x0A;
+    gap_variants = [r"[\s\x00-\x1F]", r"&#0*(?:9|10|13|32);?", r"&#[xX]0*(?:9|[aA]|[dD]|20);?"]
+    gap_pattern = f"(?:{'|'.join(gap_variants)})*"
+
     for p in PROTOCOLS:
         pattern_parts = []
         for char in p:
             c_low = ord(char.lower())
             c_up = ord(char.upper())
-            # Match character literally or as numeric entities (decimal/hex)
-            # handles optional padding and case-insensitive hex for both cases.
-            # e.g. for 'a': a, A, &#97;, &#097;, &#x61;, &#X0061;, &#65;, &#x41;
+            # Match character literally or as numeric entities (decimal/hex).
+            # Semicolon is optional in some browser parsers for entities.
+            # We include both upper and lowercase entities as they have different numeric values.
+            # e.g. for 'a': a, &#97, &#97;, &#x61, &#x61;, &#65, &#65;, &#x41, &#x41;
             char_variants = [
-                re.escape(char.lower()),
-                re.escape(char.upper()),
-                f"&#0*{c_low};",
-                f"&#[xX]0*{c_low:x};",
-                f"&#0*{c_up};",
-                f"&#[xX]0*{c_up:x};",
+                re.escape(char),  # re.IGNORECASE handles both cases
+                f"&#0*{c_low};?",
+                f"&#[xX]0*{c_low:x};?",
+                f"&#0*{c_up};?",
+                f"&#[xX]0*{c_up:x};?",
             ]
             pattern_parts.append(f"(?:{'|'.join(char_variants)})")
-        # Allow whitespace and control characters between protocol characters
-        protocol_patterns.append(r"[\s\x00-\x1F]*".join(pattern_parts))
+
+        protocol_patterns.append(gap_pattern.join(pattern_parts))
 
     combined_pattern = f"(?:{'|'.join(protocol_patterns)})"
-    # Match various colon representations: literal, encoded, entities with padding/case-insensitivity
-    # e.g. :, %3a, &#x3a;, &#058;, &colon;
+    # Match various colon representations: literal, encoded, entities with optional semicolon.
+    # e.g. :, %3a, &#x3a, &#x3a;, &#058, &#058;, &colon, &colon;
     colon_variants = [
         ":",
         "%3a",
-        "&#0*58;",
-        "&#[xX]0*3a;",
-        "&colon;",
+        "&#0*58;?",
+        "&#[xX]0*3a;?",
+        "&colon;?",
     ]
-    colon_pattern = rf"[\s\x00-\x1F]*(?:{'|'.join(colon_variants)})"
+    colon_pattern = rf"{gap_pattern}(?:{'|'.join(colon_variants)})"
     return re.compile(combined_pattern + colon_pattern, re.IGNORECASE)
 
 
