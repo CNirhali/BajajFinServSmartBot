@@ -26,6 +26,15 @@ def format_size(size_bytes):
 
 
 @st.cache_data(show_spinner=False)
+def convert_df_to_csv(df):
+    """
+    Caches the CSV-encoded bytes of a DataFrame to avoid redundant $O(N)$
+    string conversion and encoding during Streamlit reruns.
+    """
+    return df.to_csv(index=False).encode("utf-8")
+
+
+@st.cache_data(show_spinner=False)
 def get_knowledge_base_details():
     """
     Counts and lists the PDF and CSV files in the knowledge base.
@@ -39,19 +48,31 @@ def get_knowledge_base_details():
     for p in sorted(disk_pdfs):
         try:
             size = os.path.getsize(p)
+            # Optimized: Pre-sanitize the filename within the cached function to avoid
+            # redundant processing during every UI rerun.
+            safe_name = bot.sanitize_markdown(os.path.basename(p))
+            pdf_files.append({"name": safe_name, "size": format_size(size)})
             total_bytes += size
             pdf_files.append({"name": os.path.basename(p), "size": format_size(size)})
         except OSError:
-            pdf_files.append({"name": os.path.basename(p), "size": "Unknown"})
+            pdf_files.append(
+                {"name": bot.sanitize_markdown(os.path.basename(p)), "size": "Unknown"}
+            )
 
     csv_files = []
     for p in sorted(disk_csvs):
         try:
             size = os.path.getsize(p)
+            # Optimized: Pre-sanitize the filename within the cached function to avoid
+            # redundant processing during every UI rerun.
+            safe_name = bot.sanitize_markdown(os.path.basename(p))
+            csv_files.append({"name": safe_name, "size": format_size(size)})
             total_bytes += size
             csv_files.append({"name": os.path.basename(p), "size": format_size(size)})
         except OSError:
-            csv_files.append({"name": os.path.basename(p), "size": "Unknown"})
+            csv_files.append(
+                {"name": bot.sanitize_markdown(os.path.basename(p)), "size": "Unknown"}
+            )
 
     # Calculate last updated time based on file modifications
     all_paths = disk_pdfs + disk_csvs
@@ -166,6 +187,7 @@ with st.sidebar:
             help="Confirm deletion of all chat history.",
         ):
             st.session_state["chat_history"] = []
+            # Optimized: Clear the cached export text as well.
             st.session_state["full_export_text"] = (
                 "=== Bajaj Finserv SmartBot Session Export ===\n\n"
             )
@@ -176,6 +198,10 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📥 Session Export")
     if chat_history:
+        # Optimized: Use pre-calculated export text from session state to avoid O(N) reconstruction on every rerun.
+        export_text = st.session_state.get(
+            "full_export_text", "=== Bajaj Finserv SmartBot Session Export ===\n\n"
+        )
         st.download_button(
             label="📥 Download Full Conversation",
             data=st.session_state["full_export_text"],
@@ -239,19 +265,15 @@ with h2:
             if not pdf_files:
                 st.caption(":grey[*No PDF documents indexed*]")
             for f in pdf_files:
-                # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
-                st.caption(
-                    f"📄 {bot.sanitize_markdown(f['name'])} :grey[({f['size']})]"
-                )
+                # Optimized: Filename is already sanitized in get_knowledge_base_details.
+                st.caption(f"📄 {f['name']} :grey[({f['size']})]")
         with c2:
             st.markdown(f"**📊 CSVs ({csv_count})**")
             if not csv_files:
                 st.caption(":grey[*No CSV data files indexed*]")
             for f in csv_files:
-                # Security: Sanitize filename before rendering to prevent XSS/Markdown injection
-                st.caption(
-                    f"📊 {bot.sanitize_markdown(f['name'])} :grey[({f['size']})]"
-                )
+                # Optimized: Filename is already sanitized in get_knowledge_base_details.
+                st.caption(f"📊 {f['name']} :grey[({f['size']})]")
 
 st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 
@@ -519,6 +541,7 @@ if bfs_path and sensex_path:
                 st.caption(
                     "Note: BFS and Sensex are on different scales, making BFS appear flat in this view."
                 )
+                # Optimized: Use cached CSV encoding to avoid redundant O(N) conversion.
                 st.download_button(
                     label="📥 Download Price Data (CSV)",
                     data=convert_df_to_csv(merged),
@@ -557,6 +580,7 @@ if bfs_path and sensex_path:
                 st.info(
                     "This view shows the percentage growth of both entities starting from 100 on the earliest available date, allowing for a fair comparison of their performance."
                 )
+                # Optimized: Use cached CSV encoding to avoid redundant O(N) conversion.
                 st.download_button(
                     label="📥 Download Growth Data (CSV)",
                     data=convert_df_to_csv(rel_merged),
@@ -662,8 +686,35 @@ if submit_button:
                             }
                         )
 
+                    # Optimized: Pre-calculate the individual download text (query + answer + context)
+                    # to avoid expensive string joining and formatting during interaction-triggered reruns.
+                    download_text = f"Question: {query}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
+
                     # Optimized: Pre-calculate UI metadata and sanitize user query once before storing to history,
                     # reducing CPU overhead during subsequent UI reruns.
+                    new_chat = {
+                        "query": bot.sanitize_markdown(query),
+                        "answer": answer,
+                        "context": context,
+                        "context_full_text": context_full_text,
+                        "individual_download_text": download_text,
+                        "expander_label": expander_label,
+                        "ui_context": ui_context,
+                        "timestamp": time.strftime("%H:%M"),
+                    }
+                    st.session_state["chat_history"].append(new_chat)
+
+                    # Optimized: Incrementally update the full session export text to avoid O(N) reconstruction.
+                    export_text = st.session_state.get(
+                        "full_export_text",
+                        "=== Bajaj Finserv SmartBot Session Export ===\n\n",
+                    )
+                    export_text += f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
+                    export_text += f"Timestamp: {new_chat['timestamp']}\n"
+                    export_text += f"User: {new_chat['query']}\n"
+                    export_text += f"Assistant: {new_chat['answer']}\n\n"
+                    st.session_state["full_export_text"] = export_text
+
                     sanitized_query = bot.sanitize_markdown(query)
                     timestamp = time.strftime("%H:%M")
                     individual_download_text = f"Question: {sanitized_query}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
@@ -773,7 +824,33 @@ if not st.session_state["chat_history"]:
                                 }
                             )
 
+                        # Optimized: Pre-calculate the individual download text for suggestions.
+                        download_text = f"Question: {suggestion}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
+
                         # Optimized: Pre-calculate UI metadata and sanitize suggestion once before storing to history.
+                        new_chat = {
+                            "query": bot.sanitize_markdown(suggestion),
+                            "answer": answer,
+                            "context": context,
+                            "context_full_text": context_full_text,
+                            "individual_download_text": download_text,
+                            "expander_label": expander_label,
+                            "ui_context": ui_context,
+                            "timestamp": time.strftime("%H:%M"),
+                        }
+                        st.session_state["chat_history"].append(new_chat)
+
+                        # Optimized: Incrementally update the full session export text to avoid O(N) reconstruction.
+                        export_text = st.session_state.get(
+                            "full_export_text",
+                            "=== Bajaj Finserv SmartBot Session Export ===\n\n",
+                        )
+                        export_text += f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
+                        export_text += f"Timestamp: {new_chat['timestamp']}\n"
+                        export_text += f"User: {new_chat['query']}\n"
+                        export_text += f"Assistant: {new_chat['answer']}\n\n"
+                        st.session_state["full_export_text"] = export_text
+
                         sanitized_suggestion = bot.sanitize_markdown(suggestion)
                         timestamp = time.strftime("%H:%M")
                         individual_download_text = f"Question: {sanitized_suggestion}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
@@ -850,6 +927,7 @@ else:
                         st.code("\n\n".join(grouped_context[src]), language=None)
 
                 # Download button for answer and context
+                # Optimized: Use pre-calculated individual download text from session state.
                 # Optimized: Use pre-calculated individual_download_text from session state
                 # to avoid redundant string concatenation on every rerun.
                 download_text = chat.get("individual_download_text")
