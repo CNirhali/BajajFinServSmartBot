@@ -166,6 +166,9 @@ with st.sidebar:
             help="Confirm deletion of all chat history.",
         ):
             st.session_state["chat_history"] = []
+            st.session_state["full_export_text"] = (
+                "=== Bajaj Finserv SmartBot Session Export ===\n\n"
+            )
             st.toast("Chat history cleared!", icon="🗑️")
             time.sleep(0.5)
             st.rerun()
@@ -173,16 +176,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📥 Session Export")
     if chat_history:
-        export_text = "=== Bajaj Finserv SmartBot Session Export ===\n\n"
-        for i, chat in enumerate(chat_history):
-            export_text += f"--- Interaction {i+1} ---\n"
-            export_text += f"Timestamp: {chat.get('timestamp', 'N/A')}\n"
-            export_text += f"User: {chat['query']}\n"
-            export_text += f"Assistant: {chat['answer']}\n\n"
-
         st.download_button(
             label="📥 Download Full Conversation",
-            data=export_text,
+            data=st.session_state["full_export_text"],
             file_name=f"smartbot_session_{time.strftime('%Y%m%d_%H%M%S')}.txt",
             mime="text/plain",
             help="Download all interactions from this session as a text file.",
@@ -406,6 +402,15 @@ st.markdown("## 📊 BFS & Sensex Price Trends")
 
 
 @st.cache_data(show_spinner=False)
+def convert_df_to_csv(df):
+    """
+    Caches the CSV-encoded bytes of a DataFrame.
+    Optimized: Prevents redundant O(N) string conversion and encoding on every rerun.
+    """
+    return df.to_csv(index=False).encode("utf-8")
+
+
+@st.cache_data(show_spinner=False)
 def get_analytics_data(bfs_path, sensex_path):
     """Cached function to process CSV data for analytics, improving UI responsiveness."""
     try:
@@ -516,7 +521,7 @@ if bfs_path and sensex_path:
                 )
                 st.download_button(
                     label="📥 Download Price Data (CSV)",
-                    data=merged.to_csv(index=False).encode("utf-8"),
+                    data=convert_df_to_csv(merged),
                     file_name="bfs_sensex_prices.csv",
                     mime="text/csv",
                     help="Download the absolute price data for BFS and Sensex as a CSV file.",
@@ -554,7 +559,7 @@ if bfs_path and sensex_path:
                 )
                 st.download_button(
                     label="📥 Download Growth Data (CSV)",
-                    data=rel_merged.to_csv(index=False).encode("utf-8"),
+                    data=convert_df_to_csv(rel_merged),
                     file_name="bfs_sensex_growth.csv",
                     mime="text/csv",
                     help="Download the relative growth performance data as a CSV file.",
@@ -598,6 +603,9 @@ st.markdown("---")
 # --- Chat Section ---
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
+
+if "full_export_text" not in st.session_state:
+    st.session_state["full_export_text"] = "=== Bajaj Finserv SmartBot Session Export ===\n\n"
 
 st.markdown("## 💬 Ask a question")
 # Optimized: Using st.form for better keyboard accessibility (Enter key) and batching updates
@@ -656,16 +664,28 @@ if submit_button:
 
                     # Optimized: Pre-calculate UI metadata and sanitize user query once before storing to history,
                     # reducing CPU overhead during subsequent UI reruns.
+                    sanitized_query = bot.sanitize_markdown(query)
+                    timestamp = time.strftime("%H:%M")
+                    individual_download_text = f"Question: {sanitized_query}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
+
                     st.session_state["chat_history"].append(
                         {
-                            "query": bot.sanitize_markdown(query),
+                            "query": sanitized_query,
                             "answer": answer,
                             "context": context,
                             "context_full_text": context_full_text,
                             "expander_label": expander_label,
                             "ui_context": ui_context,
-                            "timestamp": time.strftime("%H:%M"),
+                            "timestamp": timestamp,
+                            "individual_download_text": individual_download_text,
                         }
+                    )
+                    # Optimized: Incrementally update the full export text to avoid O(N) reconstruction on every rerun.
+                    st.session_state["full_export_text"] += (
+                        f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
+                        f"Timestamp: {timestamp}\n"
+                        f"User: {sanitized_query}\n"
+                        f"Assistant: {answer}\n\n"
                     )
                     st.toast("Response generated!", icon="💬")
                 except Exception as e:
@@ -754,16 +774,28 @@ if not st.session_state["chat_history"]:
                             )
 
                         # Optimized: Pre-calculate UI metadata and sanitize suggestion once before storing to history.
+                        sanitized_suggestion = bot.sanitize_markdown(suggestion)
+                        timestamp = time.strftime("%H:%M")
+                        individual_download_text = f"Question: {sanitized_suggestion}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
+
                         st.session_state["chat_history"].append(
                             {
-                                "query": bot.sanitize_markdown(suggestion),
+                                "query": sanitized_suggestion,
                                 "answer": answer,
                                 "context": context,
                                 "context_full_text": context_full_text,
                                 "expander_label": expander_label,
                                 "ui_context": ui_context,
-                                "timestamp": time.strftime("%H:%M"),
+                                "timestamp": timestamp,
+                                "individual_download_text": individual_download_text,
                             }
+                        )
+                        # Optimized: Incrementally update the full export text to avoid O(N) reconstruction on every rerun.
+                        st.session_state["full_export_text"] += (
+                            f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
+                            f"Timestamp: {timestamp}\n"
+                            f"User: {sanitized_suggestion}\n"
+                            f"Assistant: {answer}\n\n"
                         )
                         st.toast("Response generated!", icon="💬")
                         st.rerun()
@@ -818,14 +850,17 @@ else:
                         st.code("\n\n".join(grouped_context[src]), language=None)
 
                 # Download button for answer and context
-                # Optimized: Use pre-joined context string from session state.
-                context_str = chat.get("context_full_text", "")
-                if not context_str:
-                    context_str = "\n\n".join(
-                        [f"Source: {c['source']}\n{c['text']}" for c in context_data]
-                    )
+                # Optimized: Use pre-calculated individual_download_text from session state
+                # to avoid redundant string concatenation on every rerun.
+                download_text = chat.get("individual_download_text")
+                if not download_text:
+                    context_str = chat.get("context_full_text", "")
+                    if not context_str:
+                        context_str = "\n\n".join(
+                            [f"Source: {c['source']}\n{c['text']}" for c in context_data]
+                        )
+                    download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{context_str}"
 
-                download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{context_str}"
                 st.download_button(
                     label="📥 Download Answer & Context",
                     data=download_text,
