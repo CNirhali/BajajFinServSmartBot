@@ -132,10 +132,16 @@ def get_query_embedding(query):
 @functools.lru_cache(maxsize=128)
 def _retrieve_context_cached(query, top_k=5):
     # Optimized: Use cached embedding and pass it directly to ChromaDB without list re-wrapping.
+    # Optimized: Explicitly request only 'metadatas' and 'documents' from ChromaDB (include=['metadatas', 'documents']).
+    # This reduces overhead by skipping distance calculations which are not needed for this application.
     query_emb = get_query_embedding(query)
-    results = get_collection().query(query_embeddings=query_emb, n_results=top_k)
+    results = get_collection().query(
+        query_embeddings=query_emb,
+        n_results=top_k,
+        include=["metadatas", "documents"],
+    )
     # results['documents'] is a list of lists (one per query)
-    docs = results['documents'][0]
+    docs = results["documents"][0]
     metadatas = results['metadatas'][0]
     # Optimized: Return structured data instead of a joined string to avoid redundant
     # string parsing in the frontend and enable more efficient processing.
