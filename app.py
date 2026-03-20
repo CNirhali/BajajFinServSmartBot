@@ -42,6 +42,7 @@ def get_knowledge_base_details():
     to minimize disk I/O on every Streamlit rerun.
     """
     disk_pdfs, disk_csvs = data_ingest.get_knowledge_base_files()
+    total_bytes = 0
 
     pdf_files = []
     for p in sorted(disk_pdfs):
@@ -51,6 +52,8 @@ def get_knowledge_base_details():
             # redundant processing during every UI rerun.
             safe_name = bot.sanitize_markdown(os.path.basename(p))
             pdf_files.append({"name": safe_name, "size": format_size(size)})
+            total_bytes += size
+            pdf_files.append({"name": os.path.basename(p), "size": format_size(size)})
         except OSError:
             pdf_files.append(
                 {"name": bot.sanitize_markdown(os.path.basename(p)), "size": "Unknown"}
@@ -64,6 +67,8 @@ def get_knowledge_base_details():
             # redundant processing during every UI rerun.
             safe_name = bot.sanitize_markdown(os.path.basename(p))
             csv_files.append({"name": safe_name, "size": format_size(size)})
+            total_bytes += size
+            csv_files.append({"name": os.path.basename(p), "size": format_size(size)})
         except OSError:
             csv_files.append(
                 {"name": bot.sanitize_markdown(os.path.basename(p)), "size": "Unknown"}
@@ -79,7 +84,14 @@ def get_knowledge_base_details():
         except Exception:
             pass
 
-    return len(pdf_files), len(csv_files), pdf_files, csv_files, last_updated
+    return (
+        len(pdf_files),
+        len(csv_files),
+        pdf_files,
+        csv_files,
+        last_updated,
+        format_size(total_bytes),
+    )
 
 
 # --- Simple Authentication ---
@@ -160,12 +172,14 @@ with st.sidebar:
     st.title("🛡️ Sentinel Security")
 
     # UX Enhancement: Move Clear Chat to sidebar as "New Chat" for better accessibility
+    chat_history = st.session_state.get("chat_history", [])
+    history_count = len(chat_history)
     with st.popover(
         "🗑️ New Chat",
         help="Clear the current conversation and start a new session.",
         use_container_width=True,
     ):
-        st.warning("Are you sure you want to clear the entire chat history?")
+        st.warning(f"Are you sure you want to clear all {history_count} interactions?")
         if st.button(
             "🗑️ Yes, clear history",
             type="primary",
@@ -183,7 +197,6 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 📥 Session Export")
-    chat_history = st.session_state.get("chat_history", [])
     if chat_history:
         # Optimized: Use pre-calculated export text from session state to avoid O(N) reconstruction on every rerun.
         export_text = st.session_state.get(
@@ -191,7 +204,7 @@ with st.sidebar:
         )
         st.download_button(
             label="📥 Download Full Conversation",
-            data=export_text,
+            data=st.session_state["full_export_text"],
             file_name=f"smartbot_session_{time.strftime('%Y%m%d_%H%M%S')}.txt",
             mime="text/plain",
             help="Download all interactions from this session as a text file.",
@@ -219,7 +232,14 @@ with st.sidebar:
 if "indexed_files" not in st.session_state:
     st.session_state["indexed_files"] = []
 
-pdf_count, csv_count, pdf_files, csv_files, last_updated = get_knowledge_base_details()
+(
+    pdf_count,
+    csv_count,
+    pdf_files,
+    csv_files,
+    last_updated,
+    total_size_str,
+) = get_knowledge_base_details()
 
 st.markdown("# 🤖 Bajaj Finserv SmartBot")
 
@@ -228,7 +248,7 @@ with h1:
     st.markdown(f"""
     :green[🟢 Assistant Ready] | :grey[🕒 Last updated: {last_updated}]
 
-    **Knowledge Base:** :blue[{pdf_count} PDF Documents] | :green[{csv_count} CSV Data Files]
+    **Knowledge Base:** :blue[{pdf_count} PDFs] | :green[{csv_count} CSVs] | :orange[{total_size_str} total]
 
     Ask anything about the uploaded Earnings Call Transcripts, BFS, or Sensex data!
     """)
@@ -401,6 +421,15 @@ st.markdown("---")
 
 # --- Analytics Section ---
 st.markdown("## 📊 BFS & Sensex Price Trends")
+
+
+@st.cache_data(show_spinner=False)
+def convert_df_to_csv(df):
+    """
+    Caches the CSV-encoded bytes of a DataFrame.
+    Optimized: Prevents redundant O(N) string conversion and encoding on every rerun.
+    """
+    return df.to_csv(index=False).encode("utf-8")
 
 
 @st.cache_data(show_spinner=False)
@@ -599,6 +628,9 @@ st.markdown("---")
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
 
+if "full_export_text" not in st.session_state:
+    st.session_state["full_export_text"] = "=== Bajaj Finserv SmartBot Session Export ===\n\n"
+
 st.markdown("## 💬 Ask a question")
 # Optimized: Using st.form for better keyboard accessibility (Enter key) and batching updates
 
@@ -683,6 +715,29 @@ if submit_button:
                     export_text += f"Assistant: {new_chat['answer']}\n\n"
                     st.session_state["full_export_text"] = export_text
 
+                    sanitized_query = bot.sanitize_markdown(query)
+                    timestamp = time.strftime("%H:%M")
+                    individual_download_text = f"Question: {sanitized_query}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
+
+                    st.session_state["chat_history"].append(
+                        {
+                            "query": sanitized_query,
+                            "answer": answer,
+                            "context": context,
+                            "context_full_text": context_full_text,
+                            "expander_label": expander_label,
+                            "ui_context": ui_context,
+                            "timestamp": timestamp,
+                            "individual_download_text": individual_download_text,
+                        }
+                    )
+                    # Optimized: Incrementally update the full export text to avoid O(N) reconstruction on every rerun.
+                    st.session_state["full_export_text"] += (
+                        f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
+                        f"Timestamp: {timestamp}\n"
+                        f"User: {sanitized_query}\n"
+                        f"Assistant: {answer}\n\n"
+                    )
                     st.toast("Response generated!", icon="💬")
                 except Exception as e:
                     # Security: Mask raw exception details and log to server
@@ -796,6 +851,29 @@ if not st.session_state["chat_history"]:
                         export_text += f"Assistant: {new_chat['answer']}\n\n"
                         st.session_state["full_export_text"] = export_text
 
+                        sanitized_suggestion = bot.sanitize_markdown(suggestion)
+                        timestamp = time.strftime("%H:%M")
+                        individual_download_text = f"Question: {sanitized_suggestion}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
+
+                        st.session_state["chat_history"].append(
+                            {
+                                "query": sanitized_suggestion,
+                                "answer": answer,
+                                "context": context,
+                                "context_full_text": context_full_text,
+                                "expander_label": expander_label,
+                                "ui_context": ui_context,
+                                "timestamp": timestamp,
+                                "individual_download_text": individual_download_text,
+                            }
+                        )
+                        # Optimized: Incrementally update the full export text to avoid O(N) reconstruction on every rerun.
+                        st.session_state["full_export_text"] += (
+                            f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
+                            f"Timestamp: {timestamp}\n"
+                            f"User: {sanitized_suggestion}\n"
+                            f"Assistant: {answer}\n\n"
+                        )
                         st.toast("Response generated!", icon="💬")
                         st.rerun()
                     except Exception as e:
@@ -850,6 +928,8 @@ else:
 
                 # Download button for answer and context
                 # Optimized: Use pre-calculated individual download text from session state.
+                # Optimized: Use pre-calculated individual_download_text from session state
+                # to avoid redundant string concatenation on every rerun.
                 download_text = chat.get("individual_download_text")
                 if not download_text:
                     context_str = chat.get("context_full_text", "")

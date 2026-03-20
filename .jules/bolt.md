@@ -69,6 +69,10 @@
 **Learning:** `ProcessPoolExecutor` has a non-negligible overhead (~1.5s). Parallelizing a single CPU-bound task (like parsing one PDF) is actually slower than sequential execution.
 **Action:** Implement conditional parallelization: only spawn process pools when multiple independent heavy tasks are present.
 
+## 2026-03-18 - Incremental UI State and CSV Caching in Streamlit
+**Learning:** Streamlit reruns trigger expensive string operations (like `df.to_csv().encode()`) and $O(N)$ reconstructions of export logs even if the underlying data hasn't changed. As chat history or dataset size grows, this creates a palpable lag in UI responsiveness.
+**Action:** Cache CSV conversions using `@st.cache_data` and maintain an incrementally updated "export string" in `st.session_state` instead of re-building it from the full history on every rerun. This ensures constant-time performance for sidebars and download buttons.
+
 ## 2025-05-26 - Pre-calculating UI Metadata in Streamlit
 **Learning:** In Streamlit, any logic placed directly in the main rendering loop (like parsing chat history to generate labels) is executed on every user interaction. As history grows, this $O(N \times M)$ processing becomes a significant bottleneck.
 **Action:** Pre-calculate all UI-specific metadata (e.g., formatted source labels, sanitized queries) at the time of data creation and store it alongside the data in `st.session_state`. This reduces the rendering loop to a simple $O(N)$ display task.

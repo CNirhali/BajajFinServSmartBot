@@ -139,6 +139,10 @@ def _retrieve_context_cached(query, top_k=5):
         query_embeddings=query_emb,
         n_results=top_k,
         include=["metadatas", "documents"],
+    # Optimized: Explicitly include only metadatas and documents to avoid
+    # calculating and transferring unused distances.
+    results = get_collection().query(
+        query_embeddings=query_emb, n_results=top_k, include=["metadatas", "documents"]
     )
     # results['documents'] is a list of lists (one per query)
     docs = results["documents"][0]
