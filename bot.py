@@ -133,7 +133,11 @@ def get_query_embedding(query):
 def _retrieve_context_cached(query, top_k=5):
     # Optimized: Use cached embedding and pass it directly to ChromaDB without list re-wrapping.
     query_emb = get_query_embedding(query)
-    results = get_collection().query(query_embeddings=query_emb, n_results=top_k)
+    # Optimized: Explicitly include only metadatas and documents to avoid
+    # calculating and transferring unused distances.
+    results = get_collection().query(
+        query_embeddings=query_emb, n_results=top_k, include=["metadatas", "documents"]
+    )
     # results['documents'] is a list of lists (one per query)
     docs = results['documents'][0]
     metadatas = results['metadatas'][0]
