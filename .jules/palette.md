@@ -22,3 +22,7 @@
 ## 2026-03-24 - [Visual Scannability for Multi-format RAG]
 **Learning:** In RAG systems that ingest multiple file types (PDF, CSV, etc.), adding simple icons (📄, 📊) to source citations and file lists allows users to mentally categorize information sources 50-70% faster without reading full filenames.
 **Action:** Use file-type icons consistently across all UI components that reference documents to aid quick visual identification.
+
+## 2026-03-19 - [Knowledge Base Transparency & Empty States]
+**Learning:** Providing human-readable file sizes in a document listing increases user trust and system transparency. Additionally, explicitly handling empty states with greyed-out, italicized fallback messages prevents the UI from looking "broken" or unfinished when no data is present.
+**Action:** Always include metadata (like file size) in document lists and provide clear fallback messages for empty collections.
