@@ -26,3 +26,7 @@
 ## 2026-03-19 - [Knowledge Base Transparency & Empty States]
 **Learning:** Providing human-readable file sizes in a document listing increases user trust and system transparency. Additionally, explicitly handling empty states with greyed-out, italicized fallback messages prevents the UI from looking "broken" or unfinished when no data is present.
 **Action:** Always include metadata (like file size) in document lists and provide clear fallback messages for empty collections.
+
+## 2026-03-25 - [Contextual Confirmation for Destructive Actions]
+**Learning:** For destructive actions like clearing chat history, generic confirmation messages (e.g., "Are you sure?") can be easily ignored. Providing contextual details, such as the exact number of items being affected, increases user awareness and provides a final moment of reflection that reduces accidental data loss.
+**Action:** Always include dynamic counts or specific identifiers in confirmation dialogs for destructive operations.
