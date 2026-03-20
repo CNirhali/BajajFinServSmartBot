@@ -33,11 +33,13 @@ def get_knowledge_base_details():
     to minimize disk I/O on every Streamlit rerun.
     """
     disk_pdfs, disk_csvs = data_ingest.get_knowledge_base_files()
+    total_bytes = 0
 
     pdf_files = []
     for p in sorted(disk_pdfs):
         try:
             size = os.path.getsize(p)
+            total_bytes += size
             pdf_files.append({"name": os.path.basename(p), "size": format_size(size)})
         except OSError:
             pdf_files.append({"name": os.path.basename(p), "size": "Unknown"})
@@ -46,6 +48,7 @@ def get_knowledge_base_details():
     for p in sorted(disk_csvs):
         try:
             size = os.path.getsize(p)
+            total_bytes += size
             csv_files.append({"name": os.path.basename(p), "size": format_size(size)})
         except OSError:
             csv_files.append({"name": os.path.basename(p), "size": "Unknown"})
@@ -60,7 +63,14 @@ def get_knowledge_base_details():
         except Exception:
             pass
 
-    return len(pdf_files), len(csv_files), pdf_files, csv_files, last_updated
+    return (
+        len(pdf_files),
+        len(csv_files),
+        pdf_files,
+        csv_files,
+        last_updated,
+        format_size(total_bytes),
+    )
 
 
 # --- Simple Authentication ---
@@ -141,12 +151,14 @@ with st.sidebar:
     st.title("🛡️ Sentinel Security")
 
     # UX Enhancement: Move Clear Chat to sidebar as "New Chat" for better accessibility
+    chat_history = st.session_state.get("chat_history", [])
+    history_count = len(chat_history)
     with st.popover(
         "🗑️ New Chat",
         help="Clear the current conversation and start a new session.",
         use_container_width=True,
     ):
-        st.warning("Are you sure you want to clear the entire chat history?")
+        st.warning(f"Are you sure you want to clear all {history_count} interactions?")
         if st.button(
             "🗑️ Yes, clear history",
             type="primary",
@@ -160,7 +172,6 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 📥 Session Export")
-    chat_history = st.session_state.get("chat_history", [])
     if chat_history:
         export_text = "=== Bajaj Finserv SmartBot Session Export ===\n\n"
         for i, chat in enumerate(chat_history):
@@ -199,7 +210,14 @@ with st.sidebar:
 if "indexed_files" not in st.session_state:
     st.session_state["indexed_files"] = []
 
-pdf_count, csv_count, pdf_files, csv_files, last_updated = get_knowledge_base_details()
+(
+    pdf_count,
+    csv_count,
+    pdf_files,
+    csv_files,
+    last_updated,
+    total_size_str,
+) = get_knowledge_base_details()
 
 st.markdown("# 🤖 Bajaj Finserv SmartBot")
 
@@ -208,7 +226,7 @@ with h1:
     st.markdown(f"""
     :green[🟢 Assistant Ready] | :grey[🕒 Last updated: {last_updated}]
 
-    **Knowledge Base:** :blue[{pdf_count} PDF Documents] | :green[{csv_count} CSV Data Files]
+    **Knowledge Base:** :blue[{pdf_count} PDFs] | :green[{csv_count} CSVs] | :orange[{total_size_str} total]
 
     Ask anything about the uploaded Earnings Call Transcripts, BFS, or Sensex data!
     """)
