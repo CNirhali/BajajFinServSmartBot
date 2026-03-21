@@ -135,10 +135,6 @@ def _retrieve_context_cached(query, top_k=5):
     # Optimized: Explicitly request only 'metadatas' and 'documents' from ChromaDB (include=['metadatas', 'documents']).
     # This reduces overhead by skipping distance calculations which are not needed for this application.
     query_emb = get_query_embedding(query)
-    results = get_collection().query(
-        query_embeddings=query_emb,
-        n_results=top_k,
-        include=["metadatas", "documents"],
     # Optimized: Explicitly include only metadatas and documents to avoid
     # calculating and transferring unused distances.
     results = get_collection().query(
