@@ -1,5 +1,4 @@
 import os
-import glob
 import json
 import concurrent.futures
 import bot

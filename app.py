@@ -6,6 +6,7 @@ import secrets
 import shutil
 import time
 import io
+import math
 import pandas as pd
 from collections import defaultdict
 
@@ -17,7 +18,6 @@ def format_size(size_bytes):
     if size_bytes == 0:
         return "0B"
     size_name = ("B", "KB", "MB", "GB")
-    import math
 
     i = int(math.floor(math.log(size_bytes, 1024)))
     p = math.pow(1024, i)
@@ -419,15 +419,6 @@ st.markdown("---")
 
 # --- Analytics Section ---
 st.markdown("## 📊 BFS & Sensex Price Trends")
-
-
-@st.cache_data(show_spinner=False)
-def convert_df_to_csv(df):
-    """
-    Caches the CSV-encoded bytes of a DataFrame.
-    Optimized: Prevents redundant O(N) string conversion and encoding on every rerun.
-    """
-    return df.to_csv(index=False).encode("utf-8")
 
 
 @st.cache_data(show_spinner=False)
