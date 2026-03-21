@@ -123,7 +123,7 @@ def login():
         # Security Enhancement: Added max_chars=128 to the password input field to mitigate
         # potential Denial of Service (DoS) and resource exhaustion attacks.
         pw = st.text_input(
-            "Enter password to access the SmartBot:",
+            "Enter password to access the SmartBot: :red[*]",
             type="password",
             placeholder="Enter password...",
             help="Please enter the access password provided by your administrator. Press Enter to login.",
@@ -201,13 +201,14 @@ with st.sidebar:
             "full_export_text", "=== Bajaj Finserv SmartBot Session Export ===\n\n"
         )
         st.download_button(
-            label="📥 Download Full Conversation",
+            label=f"📥 Download Full Conversation ({history_count} interactions)",
             data=st.session_state["full_export_text"],
             file_name=f"smartbot_session_{time.strftime('%Y%m%d_%H%M%S')}.txt",
             mime="text/plain",
             help="Download all interactions from this session as a text file.",
             use_container_width=True,
         )
+        st.caption("💡 Tip: You can download your entire session history above for offline review.")
     else:
         st.info("No chat history to download yet.")
 
