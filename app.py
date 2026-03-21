@@ -6,6 +6,7 @@ import secrets
 import shutil
 import time
 import io
+import math
 import pandas as pd
 from collections import defaultdict
 
@@ -17,7 +18,6 @@ def format_size(size_bytes):
     if size_bytes == 0:
         return "0B"
     size_name = ("B", "KB", "MB", "GB")
-    import math
 
     i = int(math.floor(math.log(size_bytes, 1024)))
     p = math.pow(1024, i)
@@ -53,7 +53,6 @@ def get_knowledge_base_details():
             safe_name = bot.sanitize_markdown(os.path.basename(p))
             pdf_files.append({"name": safe_name, "size": format_size(size)})
             total_bytes += size
-            pdf_files.append({"name": os.path.basename(p), "size": format_size(size)})
         except OSError:
             pdf_files.append(
                 {"name": bot.sanitize_markdown(os.path.basename(p)), "size": "Unknown"}
@@ -68,7 +67,6 @@ def get_knowledge_base_details():
             safe_name = bot.sanitize_markdown(os.path.basename(p))
             csv_files.append({"name": safe_name, "size": format_size(size)})
             total_bytes += size
-            csv_files.append({"name": os.path.basename(p), "size": format_size(size)})
         except OSError:
             csv_files.append(
                 {"name": bot.sanitize_markdown(os.path.basename(p)), "size": "Unknown"}
@@ -424,15 +422,6 @@ st.markdown("## 📊 BFS & Sensex Price Trends")
 
 
 @st.cache_data(show_spinner=False)
-def convert_df_to_csv(df):
-    """
-    Caches the CSV-encoded bytes of a DataFrame.
-    Optimized: Prevents redundant O(N) string conversion and encoding on every rerun.
-    """
-    return df.to_csv(index=False).encode("utf-8")
-
-
-@st.cache_data(show_spinner=False)
 def get_analytics_data(bfs_path, sensex_path):
     """Cached function to process CSV data for analytics, improving UI responsiveness."""
     try:
@@ -714,30 +703,6 @@ if submit_button:
                     export_text += f"User: {new_chat['query']}\n"
                     export_text += f"Assistant: {new_chat['answer']}\n\n"
                     st.session_state["full_export_text"] = export_text
-
-                    sanitized_query = bot.sanitize_markdown(query)
-                    timestamp = time.strftime("%H:%M")
-                    individual_download_text = f"Question: {sanitized_query}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
-
-                    st.session_state["chat_history"].append(
-                        {
-                            "query": sanitized_query,
-                            "answer": answer,
-                            "context": context,
-                            "context_full_text": context_full_text,
-                            "expander_label": expander_label,
-                            "ui_context": ui_context,
-                            "timestamp": timestamp,
-                            "individual_download_text": individual_download_text,
-                        }
-                    )
-                    # Optimized: Incrementally update the full export text to avoid O(N) reconstruction on every rerun.
-                    st.session_state["full_export_text"] += (
-                        f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
-                        f"Timestamp: {timestamp}\n"
-                        f"User: {sanitized_query}\n"
-                        f"Assistant: {answer}\n\n"
-                    )
                     st.toast("Response generated!", icon="💬")
                 except Exception as e:
                     # Security: Mask raw exception details and log to server
@@ -850,30 +815,6 @@ if not st.session_state["chat_history"]:
                         export_text += f"User: {new_chat['query']}\n"
                         export_text += f"Assistant: {new_chat['answer']}\n\n"
                         st.session_state["full_export_text"] = export_text
-
-                        sanitized_suggestion = bot.sanitize_markdown(suggestion)
-                        timestamp = time.strftime("%H:%M")
-                        individual_download_text = f"Question: {sanitized_suggestion}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
-
-                        st.session_state["chat_history"].append(
-                            {
-                                "query": sanitized_suggestion,
-                                "answer": answer,
-                                "context": context,
-                                "context_full_text": context_full_text,
-                                "expander_label": expander_label,
-                                "ui_context": ui_context,
-                                "timestamp": timestamp,
-                                "individual_download_text": individual_download_text,
-                            }
-                        )
-                        # Optimized: Incrementally update the full export text to avoid O(N) reconstruction on every rerun.
-                        st.session_state["full_export_text"] += (
-                            f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
-                            f"Timestamp: {timestamp}\n"
-                            f"User: {sanitized_suggestion}\n"
-                            f"Assistant: {answer}\n\n"
-                        )
                         st.toast("Response generated!", icon="💬")
                         st.rerun()
                     except Exception as e:
