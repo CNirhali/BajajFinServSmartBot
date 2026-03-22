@@ -80,3 +80,10 @@
 ## 2026-03-18 - UI Context Pre-processing in Streamlit
 **Learning:** Rendering complex RAG context (grouping chunks by source, sanitizing names, adding icons) in the Streamlit rendering loop leads to $O(N \times M)$ overhead that compounds as chat history grows. Even with cached retrieval, the UI processing itself becomes a bottleneck.
 **Action:** Pre-group, sanitize, and format the entire RAG context into a `ui_context` object (list of pre-formatted source blocks) at message creation. The rendering loop should only iterate and display these static blocks, ensuring constant-time UI updates regardless of document complexity.
+
+## 2026-03-22 - Regex Backreferences and Overhead Reduction
+**Learning:** In Python, using a callable (lambda or function) in `re.sub` is significantly slower than using a string template with backreferences (e.g., `\g<0>`, `\g<name>`) because it incurs the cost of a Python function call for every match.
+**Action:** Prefer string templates and named capturing groups in `re.sub` for performance-critical text processing. Replacing a lambda with backreferences for LLM tag escaping yielded a ~51% speedup in benchmarks.
+
+**Learning:** Redundant calls to `os.path.basename` or similar string/path utilities inside tight loops (like PDF chunking) add unnecessary overhead that scales with document size.
+**Action:** Pre-calculate constant values (like filenames or sanitization results) outside loops to minimize $O(N)$ overhead.

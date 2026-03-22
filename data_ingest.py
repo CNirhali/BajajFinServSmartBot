@@ -42,13 +42,12 @@ def parse_single_pdf(pdf_path):
     chunks = []
     reader = PdfReader(pdf_path)
     text = " ".join(page.extract_text() or '' for page in reader.pages)
+    # Optimized: Move os.path.basename outside the loop to avoid redundant string processing.
+    source_name = os.path.basename(pdf_path)
     # Chunk text
     for i in range(0, len(text), CHUNK_SIZE - CHUNK_OVERLAP):
-        chunk = text[i:i+CHUNK_SIZE]
-        chunks.append({
-            'source': os.path.basename(pdf_path),
-            'text': chunk
-        })
+        chunk = text[i : i + CHUNK_SIZE]
+        chunks.append({"source": source_name, "text": chunk})
     return chunks
 
 def parse_pdfs(pdf_paths=None):
