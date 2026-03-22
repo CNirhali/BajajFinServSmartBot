@@ -3,11 +3,11 @@ import os
 import functools
 import re
 
-CHROMA_DB_DIR = './chroma_db'
-COLLECTION_NAME = 'bfs_smartbot'
-EMBED_MODEL = 'all-MiniLM-L6-v2'
-OLLAMA_URL = 'http://localhost:11434/api/generate'  # Default Ollama endpoint
-MISTRAL_MODEL = 'mistral'  # Change if your model name is different
+CHROMA_DB_DIR = "./chroma_db"
+COLLECTION_NAME = "bfs_smartbot"
+EMBED_MODEL = "all-MiniLM-L6-v2"
+OLLAMA_URL = "http://localhost:11434/api/generate"  # Default Ollama endpoint
+MISTRAL_MODEL = "mistral"  # Change if your model name is different
 
 # Lazy loading for embedding model and ChromaDB to speed up initial import
 _embedder = None
@@ -20,7 +20,16 @@ RE_MD_IMAGE = re.compile(r"!+\[")
 RE_INST_TAG = re.compile(r"\[/?INST\]", re.IGNORECASE)
 
 # Protocols to block in markdown links for security
-PROTOCOLS = ['javascript', 'vbscript', 'data', 'file', 'resource', 'blob']
+PROTOCOLS = [
+    "javascript",
+    "vbscript",
+    "data",
+    "file",
+    "resource",
+    "blob",
+    "mhtml",
+    "about",
+]
 
 
 def _build_protocol_regex():
@@ -29,9 +38,16 @@ def _build_protocol_regex():
     via internal whitespace, control characters, or various HTML entity formats.
     """
     protocol_patterns = []
-    # Whitespace, control characters, and their HTML entity equivalents that can be used for obfuscation.
-    # e.g. \n, &#10;, &#x0A;
-    gap_variants = [r"[\s\x00-\x1F]", r"&#0*(?:9|10|13|32);?", r"&#[xX]0*(?:9|[aA]|[dD]|20);?"]
+    # Whitespace, control characters, their HTML entity equivalents, and URL-encoded variants
+    # that can be used for obfuscation.
+    # e.g. \n, &#10;, &#x0A;, %0A
+    gap_variants = [
+        r"[\s\x00-\x1F]",
+        r"&#0*(?:9|10|13|32);?",
+        r"&#[xX]0*(?:9|[aA]|[dD]|20);?",
+        r"%0*(?:9|[aA]|[dD])",
+        r"%20",
+    ]
     gap_pattern = f"(?:{'|'.join(gap_variants)})*"
 
     for p in PROTOCOLS:
@@ -55,14 +71,17 @@ def _build_protocol_regex():
         protocol_patterns.append(gap_pattern.join(pattern_parts))
 
     combined_pattern = f"(?:{'|'.join(protocol_patterns)})"
-    # Match various colon representations: literal, encoded, entities with optional semicolon.
-    # e.g. :, %3a, &#x3a, &#x3a;, &#058, &#058;, &colon, &colon;
+    # Match various colon representations: literal, encoded, entities with optional semicolon,
+    # and Unicode fullwidth/small colon variants.
+    # e.g. :, %3a, &#x3a, &#x3a;, &#058, &#058;, &colon, &colon;, ：, ﹕
     colon_variants = [
         ":",
         "%3a",
         "&#0*58;?",
         "&#[xX]0*3a;?",
         "&colon;?",
+        "\uff1a",
+        "\ufe55",
     ]
     colon_pattern = rf"{gap_pattern}(?:{'|'.join(colon_variants)})"
     return re.compile(combined_pattern + colon_pattern, re.IGNORECASE)
@@ -77,6 +96,7 @@ def get_embedder():
     global _embedder
     if _embedder is None:
         from sentence_transformers import SentenceTransformer
+
         _embedder = SentenceTransformer(EMBED_MODEL)
     return _embedder
 
@@ -86,6 +106,7 @@ def get_collection():
     global _collection
     if _collection is None:
         import chromadb
+
         # Optimized: Use PersistentClient for better performance and reliable persistence in ChromaDB 0.4+.
         # It replaces the deprecated chromadb.Client(Settings(persist_directory=...)) pattern.
         chroma_client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
@@ -102,9 +123,9 @@ def get_indexed_sources():
         # Optimized: Fetch only IDs (include=[]) and parse filenames from the stable 'filename_index' IDs.
         # This is ~80-90% faster than fetching full metadatas as it avoids deserializing metadata JSON for every chunk.
         results = get_collection().get(include=[])
-        if results and results['ids']:
+        if results and results["ids"]:
             # IDs follow the format 'filename_index' (e.g., 'Q1 Transcript.pdf_0')
-            return set(id.rsplit('_', 1)[0] for id in results['ids'])
+            return set(id.rsplit("_", 1)[0] for id in results["ids"])
     except Exception:
         pass
     return set()
@@ -142,11 +163,11 @@ def _retrieve_context_cached(query, top_k=5):
     )
     # results['documents'] is a list of lists (one per query)
     docs = results["documents"][0]
-    metadatas = results['metadatas'][0]
+    metadatas = results["metadatas"][0]
     # Optimized: Return structured data instead of a joined string to avoid redundant
     # string parsing in the frontend and enable more efficient processing.
     return [
-        {'source': meta['source'], 'text': doc} for doc, meta in zip(docs, metadatas)
+        {"source": meta["source"], "text": doc} for doc, meta in zip(docs, metadatas)
     ]
 
 
@@ -215,7 +236,7 @@ Answer:"""
     # Using the shared http_session for connection pooling.
     response = http_session.post(OLLAMA_URL, json=payload, timeout=30)
     response.raise_for_status()
-    raw_answer = response.json().get('response', '').strip()
+    raw_answer = response.json().get("response", "").strip()
 
     # Security: Sanitize output to prevent exfiltration via markdown images
     return sanitize_markdown(raw_answer)
@@ -271,12 +292,14 @@ def clear_caches():
     _answer_query_cached.cache_clear()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     while True:
         user_query = input("Ask a question about the files (or 'exit'): ")
-        if user_query.lower() == 'exit':
+        if user_query.lower() == "exit":
             break
         answer, context = answer_query(user_query)
         # Handle structured context for printing
-        context_str = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+        context_str = "\n\n".join(
+            [f"Source: {c['source']}\n{c['text']}" for c in context]
+        )
         print(f"\nAnswer: {answer}\n\n---\nContext used:\n{context_str}\n")
