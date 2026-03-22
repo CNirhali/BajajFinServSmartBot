@@ -172,12 +172,13 @@ with st.sidebar:
     # UX Enhancement: Move Clear Chat to sidebar as "New Chat" for better accessibility
     chat_history = st.session_state.get("chat_history", [])
     history_count = len(chat_history)
+    int_text = "interaction" if history_count == 1 else "interactions"
     with st.popover(
         "🗑️ New Chat",
         help="Clear the current conversation and start a new session.",
-        use_container_width=True,
+        width="stretch",
     ):
-        st.warning(f"Are you sure you want to clear all {history_count} interactions?")
+        st.warning(f"Are you sure you want to clear all {history_count} {int_text}?")
         if st.button(
             "🗑️ Yes, clear history",
             type="primary",
@@ -191,6 +192,13 @@ with st.sidebar:
             )
             st.toast("Chat history cleared!", icon="🗑️")
             time.sleep(0.5)
+            st.rerun()
+        if st.button(
+            "↩️ No, keep history",
+            use_container_width=True,
+            help="Return to the chat without clearing history.",
+        ):
+            # Streamlit rerun resets the popover state, effectively closing it.
             st.rerun()
 
     st.markdown("---")
