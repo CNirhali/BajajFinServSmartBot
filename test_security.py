@@ -73,7 +73,8 @@ class TestSecurity(unittest.TestCase):
                 "[encoded1](javascript&#x3a;a), [encoded2](javascript%3aa), [encoded3](javascript&#58;a), "
                 "[no-semi1](javascript&#58a), [no-semi2](javascript&#x3aa), [newline](j&#x0A;avascript:a), "
                 "[tab](j&#9;avascript:a), [named-no-semi](javascript&colona), "
-                "[url-encoded](j%0Aavascript:a), [unicode1](javascript\uff1aa), [unicode2](javascript\ufe55a)"
+                "[url-encoded](j%0Aavascript:a), [unicode1](javascript\uff1aa), [unicode2](javascript\ufe55a), "
+                "[tab-named](j&Tab;avascript:a), [newline-named](j&NewLine;avascript:a)"
             )
         }
 
@@ -101,6 +102,8 @@ class TestSecurity(unittest.TestCase):
         self.assertIn("blocked-j%0Aavascript:a", answer)
         self.assertIn("blocked-javascript\uff1aa", answer)
         self.assertIn("blocked-javascript\ufe55a", answer)
+        self.assertIn("blocked-j&Tab;avascript:a", answer)
+        self.assertIn("blocked-j&NewLine;avascript:a", answer)
 
         # Verify no un-blocked instances remain
         # The regex below checks for common protocol names followed by colon variations that are NOT prefixed with 'blocked-'
