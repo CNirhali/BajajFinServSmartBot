@@ -221,18 +221,33 @@ with st.sidebar:
         st.info("No chat history to download yet.")
 
     st.markdown("---")
-    if st.button(
+    with st.popover(
         "🔒 Logout",
         help="Securely end your session and clear all temporary data.",
-        use_container_width=True,
+        width="stretch",
     ):
-        # Security: Audit logging for logout
-        print(f"[AUDIT] User logged out at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.success("Logged out successfully!")
-        time.sleep(0.5)
-        st.rerun()
+        st.warning(
+            "Are you sure you want to logout? This will clear your current session data."
+        )
+        if st.button(
+            "🔒 Yes, Logout",
+            type="primary",
+            width="stretch",
+            help="Confirm logout and clear session.",
+        ):
+            # Security: Audit logging for logout
+            print(f"[AUDIT] User logged out at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.success("Logged out successfully!")
+            time.sleep(0.5)
+            st.rerun()
+        if st.button(
+            "↩️ No, stay logged in",
+            width="stretch",
+            help="Return to the application without logging out.",
+        ):
+            st.rerun()
 
 # --- Main App ---
 
@@ -892,9 +907,10 @@ else:
                 st.download_button(
                     label="📥 Download Answer & Context",
                     data=download_text,
-                    file_name=f"bfs_smartbot_answer_{i+1}.txt",
+                    file_name=f"bfs_smartbot_answer_{history_count - i}.txt",
                     mime="text/plain",
                     key=f"download_{i}",
                     help="Download this specific answer and its supporting context as a text file for your records.",
+                    width="stretch",
                 )
         st.markdown("---")
