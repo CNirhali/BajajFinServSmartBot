@@ -80,3 +80,8 @@
 **Vulnerability:** XSS protocol filters can be bypassed using URL-encoded obfuscation (e.g., `j%0Aavascript:`) or non-standard Unicode colon variants (e.g., Fullwidth `：` and Small `﹕`) that some browsers or downstream parsers might treat as delimiters.
 **Learning:** Security filters must account for the multiple layers of decoding that data might undergo. URL-encoded characters in a protocol name can bypass literal or entity-based checks. Additionally, many Unicode characters visually resemble or are functionally equivalent to the ASCII colon and must be neutralized.
 **Prevention:** Extend protocol sanitization regexes to include URL-encoded variants (`%09`, `%0a`, `%0d`, `%20`) in character "gaps" and explicitly block common Unicode colon variations (`\uff1a`, `\ufe55`) in addition to ASCII and HTML-encoded colons.
+
+## 2026-03-23 - [XSS Bypass via Named HTML Entities in Protocol Sanitization]
+**Vulnerability:** Protocol filters can be bypassed using named HTML entities like `&Tab;` and `&NewLine;` (e.g., `j&Tab;avascript:`) which many browsers interpret as whitespace or ignore entirely within URI schemes.
+**Learning:** Even when a regex accounts for decimal and hex HTML entities, attackers can leverage a browser's support for named entities to inject whitespace or control characters into protocol names. These named entities (e.g., `&Tab;`, `&NewLine;`) are often parsed as whitespace, allowing the protocol to execute while evading literal or numeric-entity-based filters.
+**Prevention:** Extend the `gap_pattern` in protocol sanitization regexes to explicitly include common named HTML entities for whitespace and control characters, ensuring they are treated as obfuscation and correctly neutralized.
