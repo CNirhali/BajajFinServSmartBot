@@ -127,7 +127,8 @@ def get_indexed_sources():
         results = get_collection().get(include=[])
         if results and results["ids"]:
             # IDs follow the format 'filename_index' (e.g., 'Q1 Transcript.pdf_0')
-            return set(id.rsplit("_", 1)[0] for id in results["ids"])
+            # Optimized: Use set comprehension instead of set(generator) to reduce iteration overhead.
+            return {id.rsplit("_", 1)[0] for id in results["ids"]}
     except Exception:
         pass
     return set()
@@ -263,7 +264,8 @@ def format_source_label(context):
     Formulates a sanitized and truncated expander label from a list of context sources.
     Optimized: Centralized to prevent code duplication and ensure consistent UI formatting.
     """
-    sources = sorted(list(set(c["source"] for c in context)))
+    # Optimized: Use set comprehension and avoid redundant list() conversion before sorting.
+    sources = sorted({c["source"] for c in context})
     # Security: Sanitize source names to prevent Markdown injection
     # Affordance: Add icons based on file type for better visual scannability.
     safe_sources = []

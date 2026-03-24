@@ -41,7 +41,9 @@ def parse_single_pdf(pdf_path):
     from PyPDF2 import PdfReader
     chunks = []
     reader = PdfReader(pdf_path)
-    text = " ".join(page.extract_text() or '' for page in reader.pages)
+    # Optimized: Use list comprehension inside join() instead of a generator expression
+    # to reduce iteration overhead during text extraction.
+    text = " ".join([page.extract_text() or '' for page in reader.pages])
     # Optimized: Move os.path.basename outside the loop to avoid redundant string processing.
     source_name = os.path.basename(pdf_path)
     # Chunk text
@@ -182,7 +184,8 @@ def run_ingestion(model=None, force=False):
     - Supports a 'force' flag for a full re-index.
     """
     disk_pdfs, disk_csvs = get_knowledge_base_files()
-    disk_sources = set(os.path.basename(p) for p in disk_pdfs + disk_csvs)
+    # Optimized: Use set comprehension instead of set(generator) to reduce iteration overhead.
+    disk_sources = {os.path.basename(p) for p in disk_pdfs + disk_csvs}
 
     if force:
         pdf_chunks = parse_pdfs(disk_pdfs)
