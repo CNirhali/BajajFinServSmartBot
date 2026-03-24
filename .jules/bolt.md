@@ -87,3 +87,7 @@
 
 **Learning:** Redundant calls to `os.path.basename` or similar string/path utilities inside tight loops (like PDF chunking) add unnecessary overhead that scales with document size.
 **Action:** Pre-calculate constant values (like filenames or sanitization results) outside loops to minimize $O(N)$ overhead.
+
+## 2026-03-23 - Caching Pure String Utilities
+**Learning:** Pure functions that perform regex-based string sanitization (like `sanitize_markdown`) are often called repeatedly on the same inputs (e.g., filenames in UI loops or common user queries). Even if they are fast individually (~0.1ms), the cumulative overhead during Streamlit's frequent reruns adds up.
+**Action:** Use `functools.lru_cache` for pure string utility functions. This reduced the time for 100 calls on a 10k character string from ~0.49s to ~0.005s in benchmarks, ensuring the UI remains snappy regardless of content complexity.

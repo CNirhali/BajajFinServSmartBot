@@ -188,10 +188,13 @@ def retrieve_context(query, top_k=5):
     return _retrieve_context_cached(query.strip(), top_k=top_k)
 
 
+@functools.lru_cache(maxsize=128)
 def sanitize_markdown(text):
     """
     Sanitizes text to prevent data exfiltration via markdown image tags
-    and XSS via malicious URI protocols (javascript:, vbscript:, data:, file:, resource:, blob:).
+    and XSS via malicious URI protocols (javascript:, vbscript:, etc.).
+    Optimized: Uses lru_cache to skip expensive regex operations for repeated strings
+    (e.g., common filenames, repeated queries, or bot answers).
     """
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
