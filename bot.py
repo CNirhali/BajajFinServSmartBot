@@ -16,8 +16,11 @@ _collection = None
 # Pre-compiled regex patterns for performance
 # Used in sanitize_markdown to prevent data exfiltration via image tags
 RE_MD_IMAGE = re.compile(r"!+\[")
-# Used in ask_mistral_ollama to escape Mistral instruction tags
-RE_INST_TAG = re.compile(r"\[(?P<slash>/?)(?P<tag>INST)\]", re.IGNORECASE)
+# Used in ask_mistral_ollama to escape LLM control tokens (Mistral/Llama/System)
+# Splitting into two patterns allows using fast regex-native backreferences
+# instead of a slower Python function call for substitution.
+RE_CONTROL_BRACKET = re.compile(r"\[(?P<slash>/?)(?P<tag>INST|SYS)\]", re.IGNORECASE)
+RE_CONTROL_ANGLE = re.compile(r"<(?P<slash>/?)(?P<tag>s)>", re.IGNORECASE)
 
 # Protocols to block in markdown links for security
 PROTOCOLS = [
@@ -43,9 +46,9 @@ def _build_protocol_regex():
     # e.g. \n, &#10;, &#x0A;, %0A, &Tab;, &NewLine;
     gap_variants = [
         r"[\s\x00-\x1F]",
-        r"&#0*(?:9|10|13|32);?",
-        r"&#[xX]0*(?:9|[aA]|[dD]|20);?",
-        r"%0*(?:9|[aA]|[dD])",
+        r"&#0*(?:0|9|10|13|32);?",
+        r"&#[xX]0*(?:0|9|[aA]|[dD]|20);?",
+        r"%0*(?:0|9|[aA]|[dD])",
         r"%20",
         r"&Tab;?",
         r"&NewLine;?",
@@ -86,7 +89,8 @@ def _build_protocol_regex():
         "\ufe55",
     ]
     colon_pattern = rf"{gap_pattern}(?:{'|'.join(colon_variants)})"
-    return re.compile(combined_pattern + colon_pattern, re.IGNORECASE)
+    # Added gap_pattern at the start to catch obfuscated protocols with leading characters
+    return re.compile(gap_pattern + combined_pattern + colon_pattern, re.IGNORECASE)
 
 
 # Pre-compiled aggressive protocol sanitization regex
@@ -210,12 +214,15 @@ def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
     if isinstance(context, list):
         context = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
 
-    # Security: Sanitize input to prevent prompt injection by escaping Mistral instruction tags.
-    # We escape both [INST] and [/INST] using case-insensitive regex (RE_INST_TAG) to handle variations.
-    # Optimized: Use capturing groups and backreferences in re.sub to eliminate Python-level function call overhead
-    # for each match (~51% faster).
-    safe_query = RE_INST_TAG.sub(r"[\g<slash> \g<tag>]", query)
-    safe_context = RE_INST_TAG.sub(r"[\g<slash> \g<tag>]", context)
+    # Security: Sanitize input to prevent prompt injection by escaping LLM control tokens.
+    # We escape [INST], [/INST], [SYS], [/SYS], <s>, and </s>.
+    # Optimized: Use two re.sub calls with backreferences to eliminate Python function call
+    # overhead for each match (~51% faster than using a lambda/function).
+    safe_query = RE_CONTROL_BRACKET.sub(r"[\g<slash> \g<tag>]", query)
+    safe_query = RE_CONTROL_ANGLE.sub(r"<\g<slash> \g<tag>>", safe_query)
+
+    safe_context = RE_CONTROL_BRACKET.sub(r"[\g<slash> \g<tag>]", context)
+    safe_context = RE_CONTROL_ANGLE.sub(r"<\g<slash> \g<tag>>", safe_context)
 
     # Security Enhancement: Use Mistral-style [INST] tags and clear delimiters to help the model
     # distinguish between instructions and data, mitigating prompt injection risks.
