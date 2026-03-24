@@ -128,11 +128,13 @@ def login():
             placeholder="Enter password...",
             help="Please enter the access password provided by your administrator. Press Enter to login.",
             max_chars=128,
+            icon=":material/password:",
         )
         login_submit = st.form_submit_button(
-            "🔓 Login",
+            "Login",
             help="Verify credentials and enter the application.",
-            use_container_width=True,
+            width="stretch",
+            icon=":material/login:",
         )
         if login_submit:
             # Security Enhancement: Implement rate limiting on login attempts to mitigate brute-force attacks.
@@ -180,10 +182,11 @@ with st.sidebar:
     ):
         st.warning(f"Are you sure you want to clear all {history_count} {int_text}?")
         if st.button(
-            "🗑️ Yes, clear history",
+            "Yes, clear history",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             help="Confirm deletion of all chat history.",
+            icon=":material/delete_forever:",
         ):
             st.session_state["chat_history"] = []
             # Optimized: Clear the cached export text as well.
@@ -194,9 +197,10 @@ with st.sidebar:
             time.sleep(0.5)
             st.rerun()
         if st.button(
-            "↩️ No, keep history",
-            use_container_width=True,
+            "No, keep history",
+            width="stretch",
             help="Return to the chat without clearing history.",
+            icon=":material/undo:",
         ):
             # Streamlit rerun resets the popover state, effectively closing it.
             st.rerun()
@@ -209,12 +213,13 @@ with st.sidebar:
             "full_export_text", "=== Bajaj Finserv SmartBot Session Export ===\n\n"
         )
         st.download_button(
-            label=f"📥 Download Full Conversation ({history_count} interactions)",
+            label=f"Download Full Conversation ({history_count} interactions)",
             data=st.session_state["full_export_text"],
             file_name=f"smartbot_session_{time.strftime('%Y%m%d_%H%M%S')}.txt",
             mime="text/plain",
             help="Download all interactions from this session as a text file.",
-            use_container_width=True,
+            width="stretch",
+            icon=":material/download:",
         )
         st.caption("💡 Tip: You can download your entire session history above for offline review.")
     else:
@@ -230,10 +235,11 @@ with st.sidebar:
             "Are you sure you want to logout? This will clear your current session data."
         )
         if st.button(
-            "🔒 Yes, Logout",
+            "Yes, Logout",
             type="primary",
             width="stretch",
             help="Confirm logout and clear session.",
+            icon=":material/logout:",
         ):
             # Security: Audit logging for logout
             print(f"[AUDIT] User logged out at {time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -243,9 +249,10 @@ with st.sidebar:
             time.sleep(0.5)
             st.rerun()
         if st.button(
-            "↩️ No, stay logged in",
+            "No, stay logged in",
             width="stretch",
             help="Return to the application without logging out.",
+            icon=":material/cancel:",
         ):
             st.rerun()
 
@@ -312,7 +319,8 @@ with st.expander("⚙️ System Administration"):
         "Re-index all files (force refresh)",
         disabled=not confirm_reindex,
         help="Re-indexing is a resource-intensive task that will re-process all documents. A 60-second cooldown applies.",
-        use_container_width=True,
+        width="stretch",
+        icon=":material/refresh:",
     ):
         # Security Enhancement: Implement cooldown for resource-intensive re-indexing to prevent DoS.
         current_time = time.time()
@@ -556,12 +564,13 @@ if bfs_path and sensex_path:
                 )
                 # Optimized: Use cached CSV encoding to avoid redundant O(N) conversion.
                 st.download_button(
-                    label="📥 Download Price Data (CSV)",
+                    label="Download Price Data (CSV)",
                     data=convert_df_to_csv(merged),
                     file_name="bfs_sensex_prices.csv",
                     mime="text/csv",
                     help="Download the absolute price data for BFS and Sensex as a CSV file.",
-                    use_container_width=True,
+                    width="stretch",
+                    icon=":material/download:",
                 )
 
             with tab2:
@@ -595,12 +604,13 @@ if bfs_path and sensex_path:
                 )
                 # Optimized: Use cached CSV encoding to avoid redundant O(N) conversion.
                 st.download_button(
-                    label="📥 Download Growth Data (CSV)",
+                    label="Download Growth Data (CSV)",
                     data=convert_df_to_csv(rel_merged),
                     file_name="bfs_sensex_growth.csv",
                     mime="text/csv",
                     help="Download the relative growth performance data as a CSV file.",
-                    use_container_width=True,
+                    width="stretch",
+                    icon=":material/download:",
                 )
 
             with tab3:
@@ -654,11 +664,14 @@ with st.form(key="chat_form", clear_on_submit=True):
         placeholder="e.g. What was the closing price of BFS on Jan 2, 2024?",
         key="query_input",
         max_chars=1000,
+        icon=":material/search:",
     )
     submit_button = st.form_submit_button(
-        label="💬 Ask Assistant",
-        help="Submit your question to the AI assistant. Press Enter to submit.",
-        use_container_width=True,
+        label="Ask Assistant",
+        help="Submit your question to the AI assistant. Press Ctrl+Enter to submit.",
+        width="stretch",
+        icon=":material/chat:",
+        shortcut="Ctrl+Enter",
     )
 
 if submit_button:
@@ -905,12 +918,13 @@ else:
                     download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{context_str}"
 
                 st.download_button(
-                    label="📥 Download Answer & Context",
+                    label="Download Answer & Context",
                     data=download_text,
                     file_name=f"bfs_smartbot_answer_{history_count - i}.txt",
                     mime="text/plain",
                     key=f"download_{i}",
                     help="Download this specific answer and its supporting context as a text file for your records.",
                     width="stretch",
+                    icon=":material/download:",
                 )
         st.markdown("---")
