@@ -85,3 +85,8 @@
 **Vulnerability:** Protocol filters can be bypassed using named HTML entities like `&Tab;` and `&NewLine;` (e.g., `j&Tab;avascript:`) which many browsers interpret as whitespace or ignore entirely within URI schemes.
 **Learning:** Even when a regex accounts for decimal and hex HTML entities, attackers can leverage a browser's support for named entities to inject whitespace or control characters into protocol names. These named entities (e.g., `&Tab;`, `&NewLine;`) are often parsed as whitespace, allowing the protocol to execute while evading literal or numeric-entity-based filters.
 **Prevention:** Extend the `gap_pattern` in protocol sanitization regexes to explicitly include common named HTML entities for whitespace and control characters, ensuring they are treated as obfuscation and correctly neutralized.
+
+## 2026-03-25 - [XSS Bypass via Backslash Escapes in Protocol Sanitization]
+**Vulnerability:** XSS protocol filters can be bypassed using backslash escapes (e.g., `j\avascript:`) which some Markdown or HTML parsers might ignore or strip before processing the URI, effectively reassembling the dangerous protocol.
+**Learning:** Even with robust handling of HTML entities and URL encoding, simple literal backslashes can be used for obfuscation. Many downstream parsers are extremely permissive and will treat `j\a\v\a\s\c\r\i\p\t:` as `javascript:`.
+**Prevention:** Include the literal backslash character (`\\`) in the `gap_pattern` of the protocol sanitization regex to ensure it is treated as obfuscation and correctly neutralized regardless of where it appears in the protocol name.

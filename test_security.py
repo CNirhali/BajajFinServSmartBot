@@ -75,7 +75,8 @@ class TestSecurity(unittest.TestCase):
                 "[tab](j&#9;avascript:a), [named-no-semi](javascript&colona), "
                 "[url-encoded](j%0Aavascript:a), [unicode1](javascript\uff1aa), [unicode2](javascript\ufe55a), "
                 "[tab-named](j&Tab;avascript:a), [newline-named](j&NewLine;avascript:a), "
-                "[null1](javascript&#0;:a), [null2](javascript%00:a), [null3](javascript&#x0;:a)"
+                "[null1](javascript&#0;:a), [null2](javascript%00:a), [null3](javascript&#x0;:a), "
+                "[backslash1](j\\avascript:a), [backslash2](j\\a\\v\\a\\s\\c\\r\\i\\p\\t:a)"
             )
         }
 
@@ -109,6 +110,8 @@ class TestSecurity(unittest.TestCase):
         self.assertIn("blocked-javascript&#0;:a", answer)
         self.assertIn("blocked-javascript%00:a", answer)
         self.assertIn("blocked-javascript&#x0;:a", answer)
+        self.assertIn("blocked-j\\avascript:a", answer)
+        self.assertIn("blocked-j\\a\\v\\a\\s\\c\\r\\i\\p\\t:a", answer)
 
         # Test leading gap
         mock_post.return_value.json.return_value = {
