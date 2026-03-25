@@ -14,10 +14,12 @@ def get_knowledge_base_files():
     """
     Scans the root and uploads directory to find unique PDF and CSV files.
     Optimized: Uses os.scandir for ~65% faster discovery and deduplicates in one pass.
+    Optimized: Returns dictionaries with path, name, size, and mtime to avoid
+    redundant stat() and basename() calls in callers.
     Prioritizes files in the 'uploads/' directory if duplicates exist.
     """
-    pdf_paths = {}
-    csv_paths = {}
+    pdf_files = {}
+    csv_files = {}
     for d in [DATA_DIR, UPLOADS_DIR]:
         if not os.path.exists(d):
             continue
@@ -26,14 +28,26 @@ def get_knowledge_base_files():
                 if entry.is_file():
                     fname = entry.name
                     if fname.endswith(".pdf"):
-                        if fname not in pdf_paths or d == UPLOADS_DIR:
-                            pdf_paths[fname] = entry.path
+                        if fname not in pdf_files or d == UPLOADS_DIR:
+                            stat = entry.stat()
+                            pdf_files[fname] = {
+                                "path": entry.path,
+                                "name": fname,
+                                "size": stat.st_size,
+                                "mtime": stat.st_mtime,
+                            }
                     elif fname.endswith(".csv"):
-                        if fname not in csv_paths or d == UPLOADS_DIR:
-                            csv_paths[fname] = entry.path
+                        if fname not in csv_files or d == UPLOADS_DIR:
+                            stat = entry.stat()
+                            csv_files[fname] = {
+                                "path": entry.path,
+                                "name": fname,
+                                "size": stat.st_size,
+                                "mtime": stat.st_mtime,
+                            }
         except (OSError, FileNotFoundError):
             continue
-    return list(pdf_paths.values()), list(csv_paths.values())
+    return list(pdf_files.values()), list(csv_files.values())
 
 # 1. Load and chunk PDFs
 def parse_single_pdf(pdf_path):
@@ -58,7 +72,8 @@ def parse_pdfs(pdf_paths=None):
     Optimized: Accepts a list of specific paths to enable incremental indexing.
     """
     if pdf_paths is None:
-        pdf_paths, _ = get_knowledge_base_files()
+        pdf_files, _ = get_knowledge_base_files()
+        pdf_paths = [f["path"] for f in pdf_files]
 
     if not pdf_paths:
         return []
@@ -84,7 +99,8 @@ def parse_csvs(csv_paths=None):
     """
     import pandas as pd
     if csv_paths is None:
-        _, csv_paths = get_knowledge_base_files()
+        _, csv_files = get_knowledge_base_files()
+        csv_paths = [f["path"] for f in csv_files]
 
     csv_chunks = []
     for csv_path in csv_paths:
@@ -184,12 +200,12 @@ def run_ingestion(model=None, force=False):
     - Supports a 'force' flag for a full re-index.
     """
     disk_pdfs, disk_csvs = get_knowledge_base_files()
-    # Optimized: Use set comprehension instead of set(generator) to reduce iteration overhead.
-    disk_sources = {os.path.basename(p) for p in disk_pdfs + disk_csvs}
+    # Optimized: Use set comprehension and pre-calculated filenames.
+    disk_sources = {f["name"] for f in (disk_pdfs + disk_csvs)}
 
     if force:
-        pdf_chunks = parse_pdfs(disk_pdfs)
-        csv_chunks = parse_csvs(disk_csvs)
+        pdf_chunks = parse_pdfs([f["path"] for f in disk_pdfs])
+        csv_chunks = parse_csvs([f["path"] for f in disk_csvs])
         all_chunks = pdf_chunks + csv_chunks
         if all_chunks:
             embed_and_store(all_chunks, model=model, force=True)
@@ -204,8 +220,8 @@ def run_ingestion(model=None, force=False):
         bot.get_collection().delete(where={"source": {"$in": list(stale_sources)}})
 
     # 2. Handle new files: Only process files not in index
-    new_pdfs = [p for p in disk_pdfs if os.path.basename(p) not in indexed_sources]
-    new_csvs = [p for p in disk_csvs if os.path.basename(p) not in indexed_sources]
+    new_pdfs = [f["path"] for f in disk_pdfs if f["name"] not in indexed_sources]
+    new_csvs = [f["path"] for f in disk_csvs if f["name"] not in indexed_sources]
 
     if not new_pdfs and not new_csvs:
         return 0 # No new work to do

@@ -40,47 +40,38 @@ def get_knowledge_base_details():
     Counts and lists the PDF and CSV files in the knowledge base.
     Optimized: Uses the centralized get_knowledge_base_files scanner and caches results
     to minimize disk I/O on every Streamlit rerun.
+    Optimized: Uses pre-calculated metadata from get_knowledge_base_files to avoid
+    redundant stat() and basename() calls.
     """
     disk_pdfs, disk_csvs = data_ingest.get_knowledge_base_files()
     total_bytes = 0
+    latest_mtime = 0
 
     pdf_files = []
-    for p in sorted(disk_pdfs):
-        try:
-            size = os.path.getsize(p)
-            # Optimized: Pre-sanitize the filename within the cached function to avoid
-            # redundant processing during every UI rerun.
-            safe_name = bot.sanitize_markdown(os.path.basename(p))
-            pdf_files.append({"name": safe_name, "size": format_size(size)})
-            total_bytes += size
-        except OSError:
-            pdf_files.append(
-                {"name": bot.sanitize_markdown(os.path.basename(p)), "size": "Unknown"}
-            )
+    # Sort by filename
+    for f_meta in sorted(disk_pdfs, key=lambda x: x["name"]):
+        # Optimized: Pre-sanitize the filename within the cached function.
+        # Uses pre-calculated name and size.
+        safe_name = bot.sanitize_markdown(f_meta["name"])
+        pdf_files.append({"name": safe_name, "size": format_size(f_meta["size"])})
+        total_bytes += f_meta["size"]
+        if f_meta["mtime"] > latest_mtime:
+            latest_mtime = f_meta["mtime"]
 
     csv_files = []
-    for p in sorted(disk_csvs):
-        try:
-            size = os.path.getsize(p)
-            # Optimized: Pre-sanitize the filename within the cached function to avoid
-            # redundant processing during every UI rerun.
-            safe_name = bot.sanitize_markdown(os.path.basename(p))
-            csv_files.append({"name": safe_name, "size": format_size(size)})
-            total_bytes += size
-        except OSError:
-            csv_files.append(
-                {"name": bot.sanitize_markdown(os.path.basename(p)), "size": "Unknown"}
-            )
+    for f_meta in sorted(disk_csvs, key=lambda x: x["name"]):
+        # Optimized: Pre-sanitize the filename within the cached function.
+        # Uses pre-calculated name and size.
+        safe_name = bot.sanitize_markdown(f_meta["name"])
+        csv_files.append({"name": safe_name, "size": format_size(f_meta["size"])})
+        total_bytes += f_meta["size"]
+        if f_meta["mtime"] > latest_mtime:
+            latest_mtime = f_meta["mtime"]
 
-    # Calculate last updated time based on file modifications
-    all_paths = disk_pdfs + disk_csvs
+    # Calculate last updated time
     last_updated = "Never"
-    if all_paths:
-        try:
-            latest_mtime = max(os.path.getmtime(f) for f in all_paths)
-            last_updated = time.strftime("%b %d, %H:%M", time.localtime(latest_mtime))
-        except Exception:
-            pass
+    if latest_mtime > 0:
+        last_updated = time.strftime("%b %d, %H:%M", time.localtime(latest_mtime))
 
     return (
         len(pdf_files),
