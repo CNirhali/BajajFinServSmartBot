@@ -167,9 +167,10 @@ with st.sidebar:
     history_count = len(chat_history)
     int_text = "interaction" if history_count == 1 else "interactions"
     with st.popover(
-        "🗑️ New Chat",
+        "New Chat",
         help="Clear the current conversation and start a new session.",
         width="stretch",
+        icon=":material/delete_sweep:",
     ):
         st.warning(f"Are you sure you want to clear all {history_count} {int_text}?")
         if st.button(
@@ -218,9 +219,10 @@ with st.sidebar:
 
     st.markdown("---")
     with st.popover(
-        "🔒 Logout",
+        "Logout",
         help="Securely end your session and clear all temporary data.",
         width="stretch",
+        icon=":material/logout:",
     ):
         st.warning(
             f"Are you sure you want to logout? This will clear all {history_count} {int_text} from your current session."
@@ -274,9 +276,10 @@ with h1:
     """)
 with h2:
     with st.popover(
-        "📂 View indexed files",
+        "View indexed files",
         help="Click to see a detailed list of all documents and data files currently in the knowledge base.",
         width="stretch",
+        icon=":material/inventory_2:",
     ):
         st.markdown("### 🗂️ Indexed Files")
         c1, c2 = st.columns(2)
@@ -751,7 +754,7 @@ history_count = len(st.session_state.get("chat_history", []))
 st.markdown(f"## 🗂️ Chat History ({history_count})")
 
 if not st.session_state["chat_history"]:
-    with st.chat_message("assistant", avatar="🤖"):
+    with st.chat_message("assistant", avatar=":material/smart_toy:"):
         st.markdown("""
         👋 **Welcome! I'm your Bajaj Finserv SmartBot.**
 
@@ -784,8 +787,9 @@ if not st.session_state["chat_history"]:
     for i, (label, suggestion) in enumerate(suggestions):
         if cols[i].button(
             label,
-            use_container_width=True,
+            width="stretch",
             help="Click to ask this question instantly.",
+            icon=":material/bolt:",
         ):
             # Security Enhancement: Implement rate limiting on queries to prevent DoS/resource exhaustion.
             current_time = time.time()
@@ -858,14 +862,15 @@ if not st.session_state["chat_history"]:
                         )
 else:
     for i, chat in enumerate(reversed(st.session_state["chat_history"])):
+        st.markdown(f"### 💬 Interaction {history_count - i}")
         ts = chat.get("timestamp", "")
-        with st.chat_message("user", avatar="👤"):
+        with st.chat_message("user", avatar=":material/person:"):
             # Optimized: User query is already sanitized before storage.
             st.markdown(chat["query"])
             if ts:
                 st.caption(f"Sent at {ts}")
 
-        with st.chat_message("assistant", avatar="🤖"):
+        with st.chat_message("assistant", avatar=":material/smart_toy:"):
             st.markdown(chat["answer"])
             if ts:
                 st.caption(f"Response at {ts}")
@@ -918,7 +923,7 @@ else:
                     data=download_text,
                     file_name=f"bfs_smartbot_answer_{history_count - i}.txt",
                     mime="text/plain",
-                    key=f"download_{i}",
+                    key=f"download_{history_count - i}",
                     help="Download this specific answer and its supporting context as a text file for your records.",
                     width="stretch",
                     icon=":material/download:",
