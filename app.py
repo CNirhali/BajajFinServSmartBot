@@ -3,9 +3,7 @@ import bot
 import data_ingest
 import os
 import secrets
-import shutil
 import time
-import io
 import math
 import pandas as pd
 from collections import defaultdict
