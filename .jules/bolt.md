@@ -91,3 +91,7 @@
 ## 2026-03-23 - Caching Pure String Utilities
 **Learning:** Pure functions that perform regex-based string sanitization (like `sanitize_markdown`) are often called repeatedly on the same inputs (e.g., filenames in UI loops or common user queries). Even if they are fast individually (~0.1ms), the cumulative overhead during Streamlit's frequent reruns adds up.
 **Action:** Use `functools.lru_cache` for pure string utility functions. This reduced the time for 100 calls on a 10k character string from ~0.49s to ~0.005s in benchmarks, ensuring the UI remains snappy regardless of content complexity.
+
+## 2026-03-25 - Bundling Metadata in File Discovery
+**Learning:** `os.scandir`'s `DirEntry` objects provide access to file metadata via `.stat()` which is often already cached by the OS during the scan. Returning these attributes (size, mtime, name) in a dictionary from discovery utilities eliminates redundant (N)$ system calls and string operations (e.g., `os.path.getsize`, `os.path.basename`) in performance-critical UI loops or ingestion routines.
+**Action:** Always bundle necessary file metadata into a dictionary during the initial directory scan to prevent redundant filesystem I/O in calling functions.
