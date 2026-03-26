@@ -43,9 +43,9 @@ def _build_protocol_regex():
     protocol_patterns = []
     # Whitespace, control characters, their HTML entity equivalents, and URL-encoded variants
     # that can be used for obfuscation.
-    # e.g. \n, &#10;, &#x0A;, %0A, &Tab;, &NewLine;
+    # e.g. \n, \\, &#10;, &#x0A;, %0A, &Tab;, &NewLine;
     gap_variants = [
-        r"[\s\x00-\x1F]",
+        r"[\s\x00-\x1F\\]",
         r"&#0*(?:0|9|10|13|32);?",
         r"&#[xX]0*(?:0|9|[aA]|[dD]|20);?",
         r"%0*(?:0|9|[aA]|[dD])",
