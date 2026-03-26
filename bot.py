@@ -32,6 +32,10 @@ PROTOCOLS = [
     "blob",
     "mhtml",
     "about",
+    "filesystem",
+    "view-source",
+    "jar",
+    "ms-appx-web",
 ]
 
 
@@ -43,7 +47,7 @@ def _build_protocol_regex():
     protocol_patterns = []
     # Whitespace, control characters, their HTML entity equivalents, and URL-encoded variants
     # that can be used for obfuscation.
-    # e.g. \n, \\, &#10;, &#x0A;, %0A, &Tab;, &NewLine;
+    # e.g. \n, \\, &#10;, &#x0A;, %0A, &Tab;, &NewLine;, &nbsp;
     gap_variants = [
         r"[\s\x00-\x1F\\]",
         r"&#0*(?:0|9|10|13|32);?",
@@ -52,6 +56,10 @@ def _build_protocol_regex():
         r"%20",
         r"&Tab;?",
         r"&NewLine;?",
+        r"&nbsp;?",
+        r"&#0*160;?",
+        r"&#[xX]0*[aA]0;?",
+        r"%[cC]2%[aA]0",
     ]
     gap_pattern = f"(?:{'|'.join(gap_variants)})*"
 
