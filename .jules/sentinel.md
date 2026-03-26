@@ -46,6 +46,11 @@
 1. Always sanitize LLM output for known XSS vectors like `javascript:` and `data:` URI schemes.
 2. Implement global or component-level try-except blocks in Streamlit that log the raw error to server stdout but show a safe message to the user.
 
+## 2026-03-26 - [XSS Bypass via Non-Breaking Spaces in Protocol Sanitization]
+**Vulnerability:** XSS protocol filters can be bypassed using various representations of Non-Breaking Spaces (NBSP), such as `&nbsp;`, `&#160;`, `&#xA0;`, or URL-encoded `%C2%A0` (e.g., `j&nbsp;avascript:`).
+**Learning:** Standard whitespace filters often miss NBSP characters, which many browsers ignore or treat as whitespace within URI schemes. This allows a dangerous protocol to remain functional while evading filters that only check for literal spaces or common control characters.
+**Prevention:** Extend the `gap_pattern` in protocol sanitization regexes to include NBSP in all its common forms (named entity, decimal/hex entities, and UTF-8 URL encoding). Additionally, expand the protocol blocklist to include less common but dangerous schemes like `filesystem:`, `view-source:`, and `jar:`.
+
 ## 2025-05-15 - [Markdown Sanitization & Filename Validation]
 **Vulnerability:** XSS via stored user queries and exfiltration via file/resource URI protocols. Potential DoS via long filenames.
 **Learning:**

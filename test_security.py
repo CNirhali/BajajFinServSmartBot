@@ -76,7 +76,10 @@ class TestSecurity(unittest.TestCase):
                 "[url-encoded](j%0Aavascript:a), [unicode1](javascript\uff1aa), [unicode2](javascript\ufe55a), "
                 "[tab-named](j&Tab;avascript:a), [newline-named](j&NewLine;avascript:a), "
                 "[null1](javascript&#0;:a), [null2](javascript%00:a), [null3](javascript&#x0;:a), "
-                "[backslash1](j\\avascript:a), [backslash2](j\\a\\v\\a\\s\\c\\r\\i\\p\\t:a)"
+                "[backslash1](j\\avascript:a), [backslash2](j\\a\\v\\a\\s\\c\\r\\i\\p\\t:a), "
+                "[filesystem](filesystem:a), [view-source](view-source:a), [jar](jar:a), "
+                "[ms-appx-web](ms-appx-web:a), [nbsp1](j&nbsp;avascript:a), "
+                "[nbsp2](j&#160;avascript:a), [nbsp3](j&#xa0;avascript:a), [nbsp4](j%c2%a0avascript:a)"
             )
         }
 
@@ -112,6 +115,14 @@ class TestSecurity(unittest.TestCase):
         self.assertIn("blocked-javascript&#x0;:a", answer)
         self.assertIn("blocked-j\\avascript:a", answer)
         self.assertIn("blocked-j\\a\\v\\a\\s\\c\\r\\i\\p\\t:a", answer)
+        self.assertIn("blocked-filesystem:a", answer)
+        self.assertIn("blocked-view-source:a", answer)
+        self.assertIn("blocked-jar:a", answer)
+        self.assertIn("blocked-ms-appx-web:a", answer)
+        self.assertIn("blocked-j&nbsp;avascript:a", answer)
+        self.assertIn("blocked-j&#160;avascript:a", answer)
+        self.assertIn("blocked-j&#xa0;avascript:a", answer)
+        self.assertIn("blocked-j%c2%a0avascript:a", answer)
 
         # Test leading gap
         mock_post.return_value.json.return_value = {
