@@ -160,7 +160,7 @@ if not st.session_state["authenticated"]:
 
 # --- Sidebar ---
 with st.sidebar:
-    st.title("🛡️ Sentinel Security")
+    st.title("🛡️ Session Management")
 
     # UX Enhancement: Move Clear Chat to sidebar as "New Chat" for better accessibility
     chat_history = st.session_state.get("chat_history", [])
@@ -223,7 +223,7 @@ with st.sidebar:
         width="stretch",
     ):
         st.warning(
-            "Are you sure you want to logout? This will clear your current session data."
+            f"Are you sure you want to logout? This will clear all {history_count} {int_text} from your current session."
         )
         if st.button(
             "Yes, Logout",
@@ -282,18 +282,20 @@ with h2:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown(f"**📄 PDFs ({pdf_count})**")
-            if not pdf_files:
-                st.caption(":grey[*No PDF documents indexed*]")
-            for f in pdf_files:
-                # Optimized: Filename is already sanitized in get_knowledge_base_details.
-                st.caption(f"📄 {f['name']} :grey[({f['size']})]")
+            with st.container(height=200):
+                if not pdf_files:
+                    st.caption(":grey[*No PDF documents indexed*]")
+                for f in pdf_files:
+                    # Optimized: Filename is already sanitized in get_knowledge_base_details.
+                    st.caption(f"📄 {f['name']} :grey[({f['size']})]")
         with c2:
             st.markdown(f"**📊 CSVs ({csv_count})**")
-            if not csv_files:
-                st.caption(":grey[*No CSV data files indexed*]")
-            for f in csv_files:
-                # Optimized: Filename is already sanitized in get_knowledge_base_details.
-                st.caption(f"📊 {f['name']} :grey[({f['size']})]")
+            with st.container(height=200):
+                if not csv_files:
+                    st.caption(":grey[*No CSV data files indexed*]")
+                for f in csv_files:
+                    # Optimized: Filename is already sanitized in get_knowledge_base_details.
+                    st.caption(f"📊 {f['name']} :grey[({f['size']})]")
 
 st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 
@@ -305,7 +307,10 @@ This bot only uses files you upload or that are present in this folder. No onlin
 # --- Admin Panel ---
 with st.expander("⚙️ System Administration"):
     st.markdown("### 🛠️ Admin Panel")
-    confirm_reindex = st.checkbox("Confirm re-indexing (Required to enable button)")
+    confirm_reindex = st.checkbox(
+        "Confirm re-indexing (Required to enable button)",
+        help="Re-indexing is a heavy operation. Please confirm you want to proceed.",
+    )
     if st.button(
         "Re-index all files (force refresh)",
         disabled=not confirm_reindex,

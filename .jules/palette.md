@@ -30,3 +30,7 @@
 ## 2026-03-25 - [Contextual Confirmation for Destructive Actions]
 **Learning:** For destructive actions like clearing chat history, generic confirmation messages (e.g., "Are you sure?") can be easily ignored. Providing contextual details, such as the exact number of items being affected, increases user awareness and provides a final moment of reflection that reduces accidental data loss.
 **Action:** Always include dynamic counts or specific identifiers in confirmation dialogs for destructive operations.
+
+## 2026-03-25 - [Popovers and Overflow Management]
+**Learning:** In Streamlit, popovers containing dynamic lists (like document indexes) can become excessively tall, pushing critical action buttons off-screen or creating an awkward scrolling experience for the entire page. Using `st.container(height=X)` within the popover provides a stable, scrollable area that preserves the popover's layout and improves visual scannability.
+**Action:** Always wrap dynamic lists inside popovers or expanders in fixed-height scrollable containers to maintain UI stability.
