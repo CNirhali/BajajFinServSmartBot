@@ -95,3 +95,7 @@
 ## 2026-03-25 - Bundling Metadata in File Discovery
 **Learning:** `os.scandir`'s `DirEntry` objects provide access to file metadata via `.stat()` which is often already cached by the OS during the scan. Returning these attributes (size, mtime, name) in a dictionary from discovery utilities eliminates redundant (N)$ system calls and string operations (e.g., `os.path.getsize`, `os.path.basename`) in performance-critical UI loops or ingestion routines.
 **Action:** Always bundle necessary file metadata into a dictionary during the initial directory scan to prevent redundant filesystem I/O in calling functions.
+
+## 2026-03-26 - Optimized Single-Query Encoding
+**Learning:** In the `sentence-transformers` library, calling `model.encode(query)` with a single string is ~15% faster than passing a single-element list `model.encode([query])`. This is because the library bypasses batching, sorting, and padding logic for individual strings.
+**Action:** Use single-string input for query encoding. Note that this returns a 1D array instead of 2D, so wrap the result in a list (e.g., `[query_emb]`) before passing it to vector database query methods like ChromaDB's `collection.query`.
