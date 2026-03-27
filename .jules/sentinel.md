@@ -95,3 +95,8 @@
 **Vulnerability:** XSS protocol filters can be bypassed using backslash escapes (e.g., `j\avascript:`) which some Markdown or HTML parsers might ignore or strip before processing the URI, effectively reassembling the dangerous protocol.
 **Learning:** Even with robust handling of HTML entities and URL encoding, simple literal backslashes can be used for obfuscation. Many downstream parsers are extremely permissive and will treat `j\a\v\a\s\c\r\i\p\t:` as `javascript:`.
 **Prevention:** Include the literal backslash character (`\\`) in the `gap_pattern` of the protocol sanitization regex to ensure it is treated as obfuscation and correctly neutralized regardless of where it appears in the protocol name.
+
+## 2025-05-15 - [LLM Control Token Obfuscation with Whitespace]
+**Vulnerability:** Prompt injection filters that use exact string matching or strict regexes for LLM control tokens (e.g., `[INST]`, `<s>`) can be bypassed by injecting whitespace within the tags (e.g., `[ INST ]`, `<  s  >`).
+**Learning:** Some LLM tokenizers or template engines are permissive and will treat tags with internal whitespace as valid control tokens, while simple security filters might miss them.
+**Prevention:** Always use whitespace-aware regexes (`\s*`) when matching LLM control tokens for sanitization. Additionally, ensure the replacement string effectively "breaks" the token (e.g., by adding a space before the tag name) to prevent it from being reconstructed as a single lexical unit by the LLM's tokenizer.

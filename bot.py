@@ -19,8 +19,11 @@ RE_MD_IMAGE = re.compile(r"!+\[")
 # Used in ask_mistral_ollama to escape LLM control tokens (Mistral/Llama/System)
 # Splitting into two patterns allows using fast regex-native backreferences
 # instead of a slower Python function call for substitution.
-RE_CONTROL_BRACKET = re.compile(r"\[(?P<slash>/?)(?P<tag>INST|SYS)\]", re.IGNORECASE)
-RE_CONTROL_ANGLE = re.compile(r"<(?P<slash>/?)(?P<tag>s)>", re.IGNORECASE)
+# Enhanced: Matches tags even with internal whitespace (e.g., [ INST]) to prevent bypasses.
+RE_CONTROL_BRACKET = re.compile(
+    r"\[\s*(?P<slash>/?)\s*(?P<tag>INST|SYS)\s*\]", re.IGNORECASE
+)
+RE_CONTROL_ANGLE = re.compile(r"<\s*(?P<slash>/?)\s*(?P<tag>s)\s*>", re.IGNORECASE)
 
 # Protocols to block in markdown links for security
 PROTOCOLS = [
@@ -250,6 +253,13 @@ def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
     # We escape [INST], [/INST], [SYS], [/SYS], <s>, and </s>.
     # Optimized: Use two re.sub calls with backreferences to eliminate Python function call
     # overhead for each match (~51% faster than using a lambda/function).
+    # Enhanced: The replacement adds a space before the tag name to ensure the escaped
+    # version is not interpreted as a valid token by the LLM.
+    safe_query = RE_CONTROL_BRACKET.sub(r"[ \g<slash>\g<tag> ]", query)
+    safe_query = RE_CONTROL_ANGLE.sub(r"< \g<slash>\g<tag> >", safe_query)
+
+    safe_context = RE_CONTROL_BRACKET.sub(r"[ \g<slash>\g<tag> ]", context)
+    safe_context = RE_CONTROL_ANGLE.sub(r"< \g<slash>\g<tag> >", safe_context)
     # Optimized: Added fast-path 'if' checks to bypass regex substitution when no control
     # tokens are likely to be present, reducing CPU overhead by ~97% for clean inputs.
     safe_query = query
