@@ -100,3 +100,8 @@
 **Vulnerability:** Prompt injection filters that use exact string matching or strict regexes for LLM control tokens (e.g., `[INST]`, `<s>`) can be bypassed by injecting whitespace within the tags (e.g., `[ INST ]`, `<  s  >`).
 **Learning:** Some LLM tokenizers or template engines are permissive and will treat tags with internal whitespace as valid control tokens, while simple security filters might miss them.
 **Prevention:** Always use whitespace-aware regexes (`\s*`) when matching LLM control tokens for sanitization. Additionally, ensure the replacement string effectively "breaks" the token (e.g., by adding a space before the tag name) to prevent it from being reconstructed as a single lexical unit by the LLM's tokenizer.
+
+## 2026-03-27 - [XSS and Prompt Injection Bypass via Unicode Zero-Width Characters]
+**Vulnerability:** Security filters for URI protocols and LLM control tokens can be bypassed using Unicode zero-width characters (e.g., `\u200b`, `\u200c`, `\u200d`, `\ufeff`) which are invisible but prevent exact string matches. These can be injected even within tag names (e.g., `[I\u200bNST]`).
+**Learning:** Browsers and LLM tokenizers often ignore these characters, reassembling the malicious string after it passes the filter. Standard `\s` regex patterns do not capture these characters.
+**Prevention:** Extend "gap" patterns in regexes to include `\u200b-\u200f` and `\ufeff`. For control tokens, construct regexes that permit these gaps between *every* character of the tag name. As an additional layer of defense, explicitly strip these zero-width characters from untrusted input before processing.
