@@ -19,11 +19,32 @@ RE_MD_IMAGE = re.compile(r"!+\[")
 # Used in ask_mistral_ollama to escape LLM control tokens (Mistral/Llama/System)
 # Splitting into two patterns allows using fast regex-native backreferences
 # instead of a slower Python function call for substitution.
-# Enhanced: Matches tags even with internal whitespace (e.g., [ INST]) to prevent bypasses.
-RE_CONTROL_BRACKET = re.compile(
-    r"\[\s*(?P<slash>/?)\s*(?P<tag>INST|SYS)\s*\]", re.IGNORECASE
+def _build_control_token_regex(tags, wrapper):
+    """
+    Builds a regex to match control tokens with internal obfuscation.
+    wrapper: tuple of (opening, closing) characters, e.g. ('[', ']')
+    """
+    gap = r"[\s\u200b-\u200f\ufeff]"
+    tag_patterns = []
+    for tag in tags:
+        # Each character in the tag can be followed by optional gaps/spaces
+        tag_patterns.append(f"{gap}*".join([re.escape(c) for c in tag]))
+
+    opening = re.escape(wrapper[0])
+    closing = re.escape(wrapper[1])
+    return re.compile(
+        rf"{opening}{gap}*(?P<slash>/?){gap}*(?P<tag>{'|'.join(tag_patterns)}){gap}*{closing}",
+        re.IGNORECASE,
+    )
+
+
+# Enhanced: Matches tags even with internal whitespace or Unicode zero-width characters to prevent bypasses.
+# Expanded: Includes additional common LLM control tokens (USER, ASST, TOOL, etc.).
+RE_CONTROL_BRACKET = _build_control_token_regex(
+    ["INST", "SYS", "USER", "ASST", "TOOL", "TOOL_CALLS", "TOOL_RESULTS", "AVAILABLE_TOOLS"],
+    ("[", "]"),
 )
-RE_CONTROL_ANGLE = re.compile(r"<\s*(?P<slash>/?)\s*(?P<tag>s)\s*>", re.IGNORECASE)
+RE_CONTROL_ANGLE = _build_control_token_regex(["s"], ("<", ">"))
 
 # Protocols to block in markdown links for security
 PROTOCOLS = [
@@ -48,11 +69,11 @@ def _build_protocol_regex():
     via internal whitespace, control characters, or various HTML entity formats.
     """
     protocol_patterns = []
-    # Whitespace, control characters, their HTML entity equivalents, and URL-encoded variants
-    # that can be used for obfuscation.
-    # e.g. \n, \\, &#10;, &#x0A;, %0A, &Tab;, &NewLine;, &nbsp;
+    # Whitespace, control characters (including Unicode zero-width), their HTML entity equivalents,
+    # and URL-encoded variants that can be used for obfuscation.
+    # e.g. \n, \\, \u200b, &#10;, &#x0A;, %0A, &Tab;, &NewLine;, &nbsp;
     gap_variants = [
-        r"[\s\x00-\x1F\\]",
+        r"[\s\x00-\x1F\u200b-\u200f\ufeff\\]",
         r"&#0*(?:0|9|10|13|32);?",
         r"&#[xX]0*(?:0|9|[aA]|[dD]|20);?",
         r"%0*(?:0|9|[aA]|[dD])",
@@ -254,13 +275,24 @@ def _escape_control_tokens(text):
     if "[" not in text and "<" not in text:
         return text
 
+    # Remove zero-width characters to prevent bypasses and improve regex reliability
+    text = re.sub(r"[\u200b-\u200f\ufeff]", "", text)
+
+    def _clean_tag(match):
+        slash = match.group("slash") or ""
+        tag = match.group("tag")
+        # Remove any internal obfuscation from the tag name for the replacement
+        # Clean tag should also remove literal whitespace if it was somehow missed by the main regex but captured in the group
+        clean_tag = re.sub(r"[\s\u200b-\u200f\ufeff]", "", tag).upper()
+        if "[" in match.group(0):
+            return f"[ {slash}{clean_tag} ]"
+        return f"< {slash}{clean_tag} >"
+
     # Optimized: Perform substitutions only if necessary.
     # Standardized: Use consistent spacing [ \g<slash>\g<tag> ] and < \g<slash>\g<tag> >
     # to satisfy security requirements and ensure robust token neutralization.
-    if "[" in text:
-        text = RE_CONTROL_BRACKET.sub(r"[ \g<slash>\g<tag> ]", text)
-    if "<" in text:
-        text = RE_CONTROL_ANGLE.sub(r"< \g<slash>\g<tag> >", text)
+    text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
+    text = RE_CONTROL_ANGLE.sub(_clean_tag, text)
     return text
 
 
