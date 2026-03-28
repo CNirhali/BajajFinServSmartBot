@@ -103,3 +103,7 @@
 ## 2026-03-27 - Fast-Path Checks for Regex Operations
 **Learning:** In Python, `re.sub` and other regex operations incur significant overhead even when no match is found, especially with complex patterns or large input strings. A simple `if char in string` check is orders of magnitude faster and can bypass the regex engine entirely for "clean" inputs.
 **Action:** Implement fast-path conditional checks (e.g., `if "[" in text:`) before calling `re.sub` for security sanitization or token escaping. This yielded a ~5000x speedup for clean strings in benchmarks.
+
+## 2026-03-28 - Regex Fast-Path and Sanitization Logic Errors
+**Learning:** Even with pre-compiled regexes, calling `re.sub` repeatedly on every query and context block is expensive. A simple `if "[" not in text` check is ~5000x faster for clean inputs. Furthermore, complex functions with multiple sanitization steps are prone to logic errors where intermediate results are accidentally overwritten by original variables.
+**Action:** Always implement fast-path checks at the start of sanitization routines. Centralize escaping logic into a single helper function to ensure consistent application and prevent accidental variable overwrites.

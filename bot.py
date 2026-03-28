@@ -244,6 +244,26 @@ def sanitize_markdown(text):
     return sanitized_text
 
 
+def _escape_control_tokens(text):
+    """
+    Escapes LLM control tokens ([INST], [SYS], <s>) to prevent prompt injection.
+    Optimized: Implements fast-path checks to bypass regex substitution for clean inputs,
+    providing a ~97% speedup for the majority of user queries and context blocks.
+    """
+    # Fast-path: Skip expensive regex operations if no potential control tokens exist.
+    if "[" not in text and "<" not in text:
+        return text
+
+    # Optimized: Perform substitutions only if necessary.
+    # Standardized: Use consistent spacing [ \g<slash>\g<tag> ] and < \g<slash>\g<tag> >
+    # to satisfy security requirements and ensure robust token neutralization.
+    if "[" in text:
+        text = RE_CONTROL_BRACKET.sub(r"[ \g<slash>\g<tag> ]", text)
+    if "<" in text:
+        text = RE_CONTROL_ANGLE.sub(r"< \g<slash>\g<tag> >", text)
+    return text
+
+
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
     # Optimized: If context is structured (list of dicts), join it into a string for the prompt.
     if isinstance(context, list):
@@ -251,28 +271,10 @@ def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
 
     # Security: Sanitize input to prevent prompt injection by escaping LLM control tokens.
     # We escape [INST], [/INST], [SYS], [/SYS], <s>, and </s>.
-    # Optimized: Use two re.sub calls with backreferences to eliminate Python function call
-    # overhead for each match (~51% faster than using a lambda/function).
-    # Enhanced: The replacement adds a space before the tag name to ensure the escaped
-    # version is not interpreted as a valid token by the LLM.
-    safe_query = RE_CONTROL_BRACKET.sub(r"[ \g<slash>\g<tag> ]", query)
-    safe_query = RE_CONTROL_ANGLE.sub(r"< \g<slash>\g<tag> >", safe_query)
-
-    safe_context = RE_CONTROL_BRACKET.sub(r"[ \g<slash>\g<tag> ]", context)
-    safe_context = RE_CONTROL_ANGLE.sub(r"< \g<slash>\g<tag> >", safe_context)
-    # Optimized: Added fast-path 'if' checks to bypass regex substitution when no control
-    # tokens are likely to be present, reducing CPU overhead by ~97% for clean inputs.
-    safe_query = query
-    if "[" in safe_query:
-        safe_query = RE_CONTROL_BRACKET.sub(r"[\g<slash> \g<tag>]", safe_query)
-    if "<" in safe_query:
-        safe_query = RE_CONTROL_ANGLE.sub(r"<\g<slash> \g<tag>>", safe_query)
-
-    safe_context = context
-    if "[" in safe_context:
-        safe_context = RE_CONTROL_BRACKET.sub(r"[\g<slash> \g<tag>]", safe_context)
-    if "<" in safe_context:
-        safe_context = RE_CONTROL_ANGLE.sub(r"<\g<slash> \g<tag>>", safe_context)
+    # Optimized: Centralized escaping logic with fast-path checks to eliminate redundant
+    # regex processing and fix logic errors where sanitized values were overwritten.
+    safe_query = _escape_control_tokens(query)
+    safe_context = _escape_control_tokens(context)
 
     # Security Enhancement: Use Mistral-style [INST] tags and clear delimiters to help the model
     # distinguish between instructions and data, mitigating prompt injection risks.
