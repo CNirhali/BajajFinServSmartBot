@@ -34,3 +34,7 @@
 ## 2026-03-25 - [Popovers and Overflow Management]
 **Learning:** In Streamlit, popovers containing dynamic lists (like document indexes) can become excessively tall, pushing critical action buttons off-screen or creating an awkward scrolling experience for the entire page. Using `st.container(height=X)` within the popover provides a stable, scrollable area that preserves the popover's layout and improves visual scannability.
 **Action:** Always wrap dynamic lists inside popovers or expanders in fixed-height scrollable containers to maintain UI stability.
+
+## 2026-03-25 - [Searchable Metadata Lists]
+**Learning:** As a Knowledge Base grows, even a categorized list in a popover can become overwhelming to scan. Adding a real-time search filter with `st.text_input` and `label_visibility="collapsed"` provides a clean, immediate way for users to verify the presence of specific documents without excessive scrolling or cognitive load.
+**Action:** Include a search filter at the top of long or metadata-heavy lists to improve scannability and user efficiency.

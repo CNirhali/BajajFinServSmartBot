@@ -121,9 +121,10 @@ def login():
         )
         login_submit = st.form_submit_button(
             "Login",
-            help="Verify credentials and enter the application.",
+            help="Verify credentials and enter the application. Press Enter to submit.",
             width="stretch",
             icon=":material/login:",
+            shortcut="Enter",
         )
         if login_submit:
             # Security Enhancement: Implement rate limiting on login attempts to mitigate brute-force attacks.
@@ -280,21 +281,38 @@ with h2:
         icon=":material/inventory_2:",
     ):
         st.markdown("### 🗂️ Indexed Files")
+        search_term = st.text_input(
+            "Search indexed files",
+            placeholder="Search filenames...",
+            icon=":material/search:",
+            label_visibility="collapsed",
+            key="kb_search",
+        ).lower()
+
+        filtered_pdfs = [f for f in pdf_files if search_term in f["name"].lower()]
+        filtered_csvs = [f for f in csv_files if search_term in f["name"].lower()]
+
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f"**📄 PDFs ({pdf_count})**")
+            st.markdown(f"**📄 PDFs ({len(filtered_pdfs)}/{pdf_count})**")
             with st.container(height=200):
-                if not pdf_files:
-                    st.caption(":grey[*No PDF documents indexed*]")
-                for f in pdf_files:
+                if not filtered_pdfs:
+                    if search_term:
+                        st.caption(":grey[*No matching PDFs found*]")
+                    else:
+                        st.caption(":grey[*No PDF documents indexed*]")
+                for f in filtered_pdfs:
                     # Optimized: Filename is already sanitized in get_knowledge_base_details.
                     st.caption(f"📄 {f['name']} :grey[({f['size']})]")
         with c2:
-            st.markdown(f"**📊 CSVs ({csv_count})**")
+            st.markdown(f"**📊 CSVs ({len(filtered_csvs)}/{csv_count})**")
             with st.container(height=200):
-                if not csv_files:
-                    st.caption(":grey[*No CSV data files indexed*]")
-                for f in csv_files:
+                if not filtered_csvs:
+                    if search_term:
+                        st.caption(":grey[*No matching CSVs found*]")
+                    else:
+                        st.caption(":grey[*No CSV data files indexed*]")
+                for f in filtered_csvs:
                     # Optimized: Filename is already sanitized in get_knowledge_base_details.
                     st.caption(f"📊 {f['name']} :grey[({f['size']})]")
 
