@@ -28,8 +28,26 @@ def convert_df_to_csv(df):
     """
     Caches the CSV-encoded bytes of a DataFrame to avoid redundant $O(N)$
     string conversion and encoding during Streamlit reruns.
+    Security Enhancement: Sanitizes DataFrame content to prevent CSV Injection.
     """
-    return df.to_csv(index=False).encode("utf-8")
+    # Defensive copy to avoid modifying the original DataFrame in session state
+    safe_df = df.copy()
+
+    # Prepend a single quote to any cell starting with a dangerous character.
+    # This prevents spreadsheet applications from interpreting the cell as a formula.
+    # Dangerous characters: =, +, -, @, \t, \r
+    dangerous_chars = ("=", "+", "-", "@", "\t", "\r")
+
+    def sanitize_cell(val):
+        if isinstance(val, str) and val.startswith(dangerous_chars):
+            return f"'{val}"
+        return val
+
+    # Apply sanitization to all columns
+    for col in safe_df.columns:
+        safe_df[col] = safe_df[col].apply(sanitize_cell)
+
+    return safe_df.to_csv(index=False).encode("utf-8")
 
 
 @st.cache_data(show_spinner=False)
