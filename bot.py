@@ -46,6 +46,9 @@ RE_CONTROL_BRACKET = _build_control_token_regex(
 )
 RE_CONTROL_ANGLE = _build_control_token_regex(["s"], ("<", ">"))
 
+# Pre-compiled regex for zero-width characters to improve performance in _escape_control_tokens
+RE_ZERO_WIDTH = re.compile(r"[\u200b-\u200f\ufeff]")
+
 # Protocols to block in markdown links for security
 PROTOCOLS = [
     "javascript",
@@ -127,6 +130,21 @@ def _build_protocol_regex():
 
 # Pre-compiled aggressive protocol sanitization regex
 RE_PROTOCOL_SAN = _build_protocol_regex()
+
+
+def _clean_tag(match):
+    """
+    Helper function to clean up and format LLM control tags during substitution.
+    Moved to module level to avoid re-definition overhead in _escape_control_tokens.
+    """
+    slash = match.group("slash") or ""
+    tag = match.group("tag")
+    # Remove any internal obfuscation from the tag name for the replacement
+    # Clean tag should also remove literal whitespace if it was somehow missed by the main regex but captured in the group
+    clean_tag = re.sub(r"[\s\u200b-\u200f\ufeff]", "", tag).upper()
+    if "[" in match.group(0):
+        return f"[ {slash}{clean_tag} ]"
+    return f"< {slash}{clean_tag} >"
 
 
 def get_embedder():
@@ -268,31 +286,23 @@ def sanitize_markdown(text):
 def _escape_control_tokens(text):
     """
     Escapes LLM control tokens ([INST], [SYS], <s>) to prevent prompt injection.
-    Optimized: Implements fast-path checks to bypass regex substitution for clean inputs,
-    providing a ~97% speedup for the majority of user queries and context blocks.
+    Optimized: Implements granular fast-path checks and uses pre-compiled regexes
+    to bypass expensive substitutions for clean inputs.
     """
     # Fast-path: Skip expensive regex operations if no potential control tokens exist.
     if "[" not in text and "<" not in text:
         return text
 
-    # Remove zero-width characters to prevent bypasses and improve regex reliability
-    text = re.sub(r"[\u200b-\u200f\ufeff]", "", text)
+    # Optimized: Use character-in-string check before calling regex for zero-width removal.
+    if any(c in text for c in "\u200b\u200c\u200d\u200e\u200f\ufeff"):
+        text = RE_ZERO_WIDTH.sub("", text)
 
-    def _clean_tag(match):
-        slash = match.group("slash") or ""
-        tag = match.group("tag")
-        # Remove any internal obfuscation from the tag name for the replacement
-        # Clean tag should also remove literal whitespace if it was somehow missed by the main regex but captured in the group
-        clean_tag = re.sub(r"[\s\u200b-\u200f\ufeff]", "", tag).upper()
-        if "[" in match.group(0):
-            return f"[ {slash}{clean_tag} ]"
-        return f"< {slash}{clean_tag} >"
+    # Optimized: Use pre-defined _clean_tag and granular character checks to bypass sub() calls.
+    if "[" in text:
+        text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
+    if "<" in text:
+        text = RE_CONTROL_ANGLE.sub(_clean_tag, text)
 
-    # Optimized: Perform substitutions only if necessary.
-    # Standardized: Use consistent spacing [ \g<slash>\g<tag> ] and < \g<slash>\g<tag> >
-    # to satisfy security requirements and ensure robust token neutralization.
-    text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
-    text = RE_CONTROL_ANGLE.sub(_clean_tag, text)
     return text
 
 
