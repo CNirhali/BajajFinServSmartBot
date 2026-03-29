@@ -38,3 +38,7 @@
 ## 2026-03-25 - [Searchable Metadata Lists]
 **Learning:** As a Knowledge Base grows, even a categorized list in a popover can become overwhelming to scan. Adding a real-time search filter with `st.text_input` and `label_visibility="collapsed"` provides a clean, immediate way for users to verify the presence of specific documents without excessive scrolling or cognitive load.
 **Action:** Include a search filter at the top of long or metadata-heavy lists to improve scannability and user efficiency.
+
+## 2026-03-29 - [Optimized Confirmation Dialogs]
+**Learning:** Confirmation dialogs with stacked full-width buttons can feel visually overwhelming and disjointed. Using a side-by-side layout (e.g., `st.columns(2, gap="small")`) for binary choices like "Yes/No" creates a more balanced, standard, and predictable interface that matches common design patterns.
+**Action:** Prefer side-by-side button layouts for binary confirmation dialogs to improve visual balance and user recognition.
