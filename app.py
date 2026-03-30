@@ -194,14 +194,15 @@ with st.sidebar:
     history_count = len(chat_history)
     int_text = "interaction" if history_count == 1 else "interactions"
     with st.popover(
-        "New Chat",
+        f"New Chat ({history_count})",
         help="Clear the current conversation and start a new session.",
         width="stretch",
         icon=":material/delete_sweep:",
     ):
         st.warning(f"Are you sure you want to clear all {history_count} {int_text}?")
-        if st.button(
-            "Yes, clear history",
+        c1, c2 = st.columns(2, gap="small")
+        if c1.button(
+            "Yes, clear",
             type="primary",
             width="stretch",
             help="Confirm deletion of all chat history.",
@@ -215,8 +216,8 @@ with st.sidebar:
             st.toast("Chat history cleared!", icon="🗑️")
             time.sleep(0.5)
             st.rerun()
-        if st.button(
-            "No, keep history",
+        if c2.button(
+            "No, keep",
             width="stretch",
             help="Return to the chat without clearing history.",
             icon=":material/undo:",
@@ -242,7 +243,7 @@ with st.sidebar:
         )
         st.caption("💡 Tip: You can download your entire session history above for offline review.")
     else:
-        st.info("No chat history to download yet.")
+        st.info("No chat history to download yet.", icon=":material/history_toggle_off:")
 
     st.markdown("---")
     with st.popover(
@@ -254,7 +255,8 @@ with st.sidebar:
         st.warning(
             f"Are you sure you want to logout? This will clear all {history_count} {int_text} from your current session."
         )
-        if st.button(
+        c1, c2 = st.columns(2, gap="small")
+        if c1.button(
             "Yes, Logout",
             type="primary",
             width="stretch",
@@ -268,8 +270,8 @@ with st.sidebar:
             st.success("Logged out successfully!")
             time.sleep(0.5)
             st.rerun()
-        if st.button(
-            "No, stay logged in",
+        if c2.button(
+            "No, stay",
             width="stretch",
             help="Return to the application without logging out.",
             icon=":material/cancel:",
@@ -349,7 +351,7 @@ st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 st.info("""
 **Privacy Notice:**
 This bot only uses files you upload or that are present in this folder. No online search or external data is accessed. All processing is local and private.
-""")
+""", icon=":material/privacy_tip:")
 
 # --- Admin Panel ---
 with st.expander("⚙️ System Administration"):
@@ -917,8 +919,8 @@ if not st.session_state["chat_history"]:
                         )
 else:
     for i, chat in enumerate(reversed(st.session_state["chat_history"])):
-        st.markdown(f"### 💬 Interaction {history_count - i}")
         ts = chat.get("timestamp", "")
+        st.markdown(f"### 💬 Interaction {history_count - i} :grey[({ts})]")
         with st.chat_message("user", avatar=":material/person:"):
             # Optimized: User query is already sanitized before storage.
             st.markdown(chat["query"])
