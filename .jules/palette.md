@@ -42,3 +42,7 @@
 ## 2026-03-29 - [Optimized Confirmation Dialogs]
 **Learning:** Confirmation dialogs with stacked full-width buttons can feel visually overwhelming and disjointed. Using a side-by-side layout (e.g., `st.columns(2, gap="small")`) for binary choices like "Yes/No" creates a more balanced, standard, and predictable interface that matches common design patterns.
 **Action:** Prefer side-by-side button layouts for binary confirmation dialogs to improve visual balance and user recognition.
+
+## 2026-03-30 - [Information Scent & Modernized Suggestions]
+**Learning:** Increasing "information scent" by adding dynamic metadata (like file counts) to navigation triggers (like popovers) provides immediate context and reduces unnecessary interactions. For "Quick Start" interfaces, replacing generic icons with context-specific Material Symbols and moving long labels to tooltips significantly improves visual scannability and professional feel.
+**Action:** Always look for opportunities to surface system state in button labels and use context-aware iconography to aid rapid visual identification of features.
