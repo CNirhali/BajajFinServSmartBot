@@ -24,7 +24,8 @@ def _build_control_token_regex(tags, wrapper):
     Builds a regex to match control tokens with internal obfuscation.
     wrapper: tuple of (opening, closing) characters, e.g. ('[', ']')
     """
-    gap = r"[\s\u200b-\u200f\ufeff]"
+    # Expanded: Includes additional invisible/format Unicode characters to prevent obfuscation bypasses.
+    gap = r"[\s\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]"
     tag_patterns = []
     for tag in tags:
         # Each character in the tag can be followed by optional gaps/spaces
@@ -46,8 +47,9 @@ RE_CONTROL_BRACKET = _build_control_token_regex(
 )
 RE_CONTROL_ANGLE = _build_control_token_regex(["s"], ("<", ">"))
 
-# Pre-compiled regex for zero-width characters to improve performance in _escape_control_tokens
-RE_ZERO_WIDTH = re.compile(r"[\u200b-\u200f\ufeff]")
+# Pre-compiled regex for zero-width and format characters to improve performance in _escape_control_tokens
+# Expanded: Includes directional formatting and invisible formatters.
+RE_ZERO_WIDTH = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]")
 
 # Protocols to block in markdown links for security
 PROTOCOLS = [
@@ -72,11 +74,12 @@ def _build_protocol_regex():
     via internal whitespace, control characters, or various HTML entity formats.
     """
     protocol_patterns = []
-    # Whitespace, control characters (including Unicode zero-width), their HTML entity equivalents,
+    # Whitespace, control characters (including Unicode zero-width/format), their HTML entity equivalents,
     # and URL-encoded variants that can be used for obfuscation.
     # e.g. \n, \\, \u200b, &#10;, &#x0A;, %0A, &Tab;, &NewLine;, &nbsp;
+    # Expanded gap pattern to include directional formatting and invisible formatters.
     gap_variants = [
-        r"[\s\x00-\x1F\u200b-\u200f\ufeff\\]",
+        r"[\s\x00-\x1F\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]",
         r"&#0*(?:0|9|10|13|32);?",
         r"&#[xX]0*(?:0|9|[aA]|[dD]|20);?",
         r"%0*(?:0|9|[aA]|[dD])",
@@ -141,7 +144,9 @@ def _clean_tag(match):
     tag = match.group("tag")
     # Remove any internal obfuscation from the tag name for the replacement
     # Clean tag should also remove literal whitespace if it was somehow missed by the main regex but captured in the group
-    clean_tag = re.sub(r"[\s\u200b-\u200f\ufeff]", "", tag).upper()
+    # Uses the pre-compiled RE_ZERO_WIDTH which includes an expanded set of invisible characters.
+    clean_tag = RE_ZERO_WIDTH.sub("", tag)
+    clean_tag = re.sub(r"\s", "", clean_tag).upper()
     if "[" in match.group(0):
         return f"[ {slash}{clean_tag} ]"
     return f"< {slash}{clean_tag} >"
@@ -294,7 +299,8 @@ def _escape_control_tokens(text):
         return text
 
     # Optimized: Use character-in-string check before calling regex for zero-width removal.
-    if any(c in text for c in "\u200b\u200c\u200d\u200e\u200f\ufeff"):
+    # Expanded check to include directional formatting and invisible formatters.
+    if any(c in text for c in "\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2060\u2061\u2062\u2063\u2064\u2065\u2066\u2067\u2068\u2069\u206a\u206b\u206c\u206d\u206e\u206f\ufeff"):
         text = RE_ZERO_WIDTH.sub("", text)
 
     # Optimized: Use pre-defined _clean_tag and granular character checks to bypass sub() calls.

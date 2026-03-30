@@ -105,3 +105,14 @@
 **Vulnerability:** Security filters for URI protocols and LLM control tokens can be bypassed using Unicode zero-width characters (e.g., `\u200b`, `\u200c`, `\u200d`, `\ufeff`) which are invisible but prevent exact string matches. These can be injected even within tag names (e.g., `[I\u200bNST]`).
 **Learning:** Browsers and LLM tokenizers often ignore these characters, reassembling the malicious string after it passes the filter. Standard `\s` regex patterns do not capture these characters.
 **Prevention:** Extend "gap" patterns in regexes to include `\u200b-\u200f` and `\ufeff`. For control tokens, construct regexes that permit these gaps between *every* character of the tag name. As an additional layer of defense, explicitly strip these zero-width characters from untrusted input before processing.
+
+## 2026-03-30 - [Hardening Path Traversal and Obfuscated Bypasses]
+**Vulnerability:** Path traversal bypasses on Linux using Windows-style backslashes, Log Injection via CRLF characters in user-controlled metadata, and filter bypasses using directional formatting or invisible Unicode formatters.
+**Learning:**
+1. `os.path.basename` on Linux does not recognize `\` as a directory separator, allowing `..\..\app.py` to remain unchanged and potentially cause path traversal if not normalized.
+2. Audit logs that include unsanitized user strings (like filenames) are susceptible to Log Injection, where an attacker can forge log entries by injecting newline characters.
+3. Security filters for protocols and LLM control tokens must account for a wider range of invisible/format Unicode characters (beyond just zero-width spaces) such as directional embeddings and word joiners, which many parsers ignore.
+**Prevention:**
+1. Always normalize backslashes to forward slashes before calling `os.path.basename` for cross-platform path sanitization.
+2. Implement a centralized `sanitize_log` function to strip CRLF characters from all strings before they are written to audit logs.
+3. Expand "gap" patterns in security regexes to include directional formatting (`\u202a-\u202e`) and invisible formatters (`\u2060-\u206f`).
