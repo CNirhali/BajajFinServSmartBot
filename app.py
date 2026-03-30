@@ -305,7 +305,7 @@ with h1:
     """)
 with h2:
     with st.popover(
-        "View indexed files",
+        f"View indexed files ({pdf_count + csv_count})",
         help="Click to see a detailed list of all documents and data files currently in the knowledge base.",
         width="stretch",
         icon=":material/inventory_2:",
@@ -827,26 +827,29 @@ if not st.session_state["chat_history"]:
 
     suggestions = [
         (
-            "📄 Summarize the key points from Q1 earnings call",
+            "Summarize key points...",
             "Summarize the key points from Q1 earnings call",
+            ":material/summarize:",
         ),
         (
-            "📈 Compare BFS and Sensex prices",
+            "Compare BFS and Sensex...",
             "Compare BFS and Sensex closing prices on the same day",
+            ":material/compare:",
         ),
         (
-            "🔮 What guidance was given for FY25?",
+            "View FY25 guidance...",
             "What guidance did management give for FY25?",
+            ":material/insights:",
         ),
     ]
 
     cols = st.columns(len(suggestions))
-    for i, (label, suggestion) in enumerate(suggestions):
+    for i, (label, suggestion, icon) in enumerate(suggestions):
         if cols[i].button(
             label,
             width="stretch",
-            help="Click to ask this question instantly.",
-            icon=":material/bolt:",
+            help=f"Ask: '{suggestion}'",
+            icon=icon,
         ):
             # Security Enhancement: Implement rate limiting on queries to prevent DoS/resource exhaustion.
             current_time = time.time()
