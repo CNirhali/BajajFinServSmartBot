@@ -11,6 +11,16 @@ from collections import defaultdict
 st.set_page_config(page_title="Bajaj Finserv SmartBot", page_icon="🤖", layout="wide")
 
 
+def sanitize_log(text):
+    """
+    Sanitizes user-provided text for use in audit logs to prevent log injection.
+    Removes newline and carriage return characters.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    return text.replace("\n", " ").replace("\r", " ")
+
+
 def format_size(size_bytes):
     """Converts bytes to human-readable format."""
     if size_bytes == 0:
@@ -427,10 +437,19 @@ if uploaded_files:
                 continue
 
             # Security Enhancement: Robustly sanitize filename to prevent path traversal.
+            # Replace backslashes with forward slashes to ensure os.path.basename works correctly
+            # on all platforms (especially Linux containers receiving Windows-style paths).
             # os.path.basename() alone is insufficient if the filename is '..' or '.'
-            safe_filename = os.path.basename(uploaded_file.name)
+            safe_filename = os.path.basename(uploaded_file.name.replace("\\", "/"))
             if safe_filename in [".", "..", ""]:
                 st.error(f"Skipping invalid filename: {uploaded_file.name}")
+                continue
+
+            # Security Enhancement: Backend extension check to prevent unauthorized file types.
+            if not safe_filename.lower().endswith((".pdf", ".csv")):
+                st.error(
+                    f"Skipping {uploaded_file.name}: Only PDF and CSV files are allowed."
+                )
                 continue
 
             # Security Enhancement: Limit filename length to prevent filesystem-related issues or DoS.
@@ -453,9 +472,11 @@ if uploaded_files:
                 )
 
         if saved_filenames:
+            # Security Enhancement: Sanitize filename list to prevent Log Injection.
+            safe_filenames_str = sanitize_log(", ".join(saved_filenames))
             # Security: Audit logging for successful file uploads
             print(
-                f"[AUDIT] Files uploaded: {', '.join(saved_filenames)} at {time.strftime('%Y-%m-%d %H:%M:%S')}"
+                f"[AUDIT] Files uploaded: {safe_filenames_str} at {time.strftime('%Y-%m-%d %H:%M:%S')}"
             )
 
         try:
