@@ -111,3 +111,10 @@
 ## 2025-05-30 - Granular Fast-Paths and Helper Hoisting
 **Learning:** Even with a general fast-path check, complex functions like `_escape_control_tokens` can incur significant overhead from redundant regex scans and inner function re-definitions. Moving helpers to the module level and implementing granular, character-specific fast-paths (e.g., `if '[' in text:`) avoids executing irrelevant regex logic.
 **Action:** Always hoist inner helper functions to the module level and use granular `if char in string` checks to bypass specific regex operations, even if a general fast-path is already present. This yielded a ~156% speedup for common context blocks in benchmarks.
+
+## 2026-03-30 - Granular Escaping and Cache Hit Maximization
+**Learning:** In RAG systems, escaping a large joined context string is inefficient because it prevents cache hits for individual chunks and forces the regex engine to scan massive strings.
+**Action:** Escape individual context chunks before joining. Combined with @functools.lru_cache, this allows repeated chunks to skip the regex engine entirely and eliminates the O(N) scan on the final joined context.
+
+**Learning:** Sequential Pandas .str.replace calls with regex=False are faster than a single regex-based replacement ([",]) for large datasets because they utilize optimized C-level string methods.
+**Action:** Prefer sequential non-regex replacements over single regex replacements for simple character removal in Pandas performance-critical paths.
