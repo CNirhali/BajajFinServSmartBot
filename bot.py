@@ -288,11 +288,13 @@ def sanitize_markdown(text):
     return sanitized_text
 
 
+@functools.lru_cache(maxsize=1024)
 def _escape_control_tokens(text):
     """
     Escapes LLM control tokens ([INST], [SYS], <s>) to prevent prompt injection.
     Optimized: Implements granular fast-path checks and uses pre-compiled regexes
     to bypass expensive substitutions for clean inputs.
+    Optimized: Added lru_cache to skip repeated processing for reused chunks.
     """
     # Fast-path: Skip expensive regex operations if no potential control tokens exist.
     if "[" not in text and "<" not in text:
@@ -313,16 +315,25 @@ def _escape_control_tokens(text):
 
 
 def ask_mistral_ollama(query, context, model=MISTRAL_MODEL):
-    # Optimized: If context is structured (list of dicts), join it into a string for the prompt.
+    # Optimized: If context is structured (list of dicts), escape individual chunks
+    # before joining. This maximizes cache hits for _escape_control_tokens and
+    # eliminates the O(N) regex scan on the final, large joined string.
     if isinstance(context, list):
-        context = "\n\n".join([f"Source: {c['source']}\n{c['text']}" for c in context])
+        escaped_chunks = []
+        for c in context:
+            safe_src = _escape_control_tokens(c["source"])
+            safe_txt = _escape_control_tokens(c["text"])
+            escaped_chunks.append(f"Source: {safe_src}\n{safe_txt}")
+        safe_context = "\n\n".join(escaped_chunks)
+    else:
+        # If context was already a string (not a list), escape it here.
+        safe_context = _escape_control_tokens(context)
 
     # Security: Sanitize input to prevent prompt injection by escaping LLM control tokens.
     # We escape [INST], [/INST], [SYS], [/SYS], <s>, and </s>.
     # Optimized: Centralized escaping logic with fast-path checks to eliminate redundant
     # regex processing and fix logic errors where sanitized values were overwritten.
     safe_query = _escape_control_tokens(query)
-    safe_context = _escape_control_tokens(context)
 
     # Security Enhancement: Use Mistral-style [INST] tags and clear delimiters to help the model
     # distinguish between instructions and data, mitigating prompt injection risks.
