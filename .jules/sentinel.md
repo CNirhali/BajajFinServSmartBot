@@ -116,3 +116,14 @@
 1. Always normalize backslashes to forward slashes before calling `os.path.basename` for cross-platform path sanitization.
 2. Implement a centralized `sanitize_log` function to strip CRLF characters from all strings before they are written to audit logs.
 3. Expand "gap" patterns in security regexes to include directional formatting (`\u202a-\u202e`) and invisible formatters (`\u2060-\u206f`).
+
+## 2025-05-15 - [Hardening URI Sanitization against Protocol Bypasses and Unicode Obfuscation]
+**Vulnerability:** XSS and malicious URI execution via missing dangerous protocols (e.g., `intent:`, `ms-appinstaller:`) and obfuscated colons using visual/functional Unicode equivalents (e.g., Ratio `∶` \u2236, Two Dot Punctuation `⁚` \u205A).
+**Learning:**
+1. Blocklists for URI protocols must be comprehensive and include platform-specific schemes like `intent:` (Android) and `ms-appinstaller:` (Windows), which can lead to remote code execution or unauthorized app interactions.
+2. Attackers can bypass protocol filters by using Unicode characters that browsers or downstream handlers treat as equivalent to the ASCII colon (`:`).
+3. Named HTML entities for whitespace (e.g., `&thinsp;`, `&zwnj;`) can bypass gap filters that only account for literal whitespace or numeric entities.
+**Prevention:**
+1. Regularly audit and expand the URI protocol blocklist with modern and platform-specific dangerous schemes.
+2. Extend protocol sanitization regexes to include functional Unicode colon variants and common named HTML entities for whitespace and control characters.
+3. Ensure fast-path checks in sanitization logic are updated to include all new trigger characters (like `&` and specific Unicode variants) to avoid accidental bypasses.

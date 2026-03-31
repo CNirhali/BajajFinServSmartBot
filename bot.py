@@ -65,6 +65,13 @@ PROTOCOLS = [
     "view-source",
     "jar",
     "ms-appx-web",
+    "ms-appx",
+    "ms-appinstaller",
+    "intent",
+    "content",
+    "chrome",
+    "moz-extension",
+    "webcal",
 ]
 
 
@@ -90,6 +97,11 @@ def _build_protocol_regex():
         r"&#0*160;?",
         r"&#[xX]0*[aA]0;?",
         r"%[cC]2%[aA]0",
+        r"&thinsp;?",
+        r"&zwnj;?",
+        r"&zwj;?",
+        r"&lrm;?",
+        r"&rlm;?",
     ]
     gap_pattern = f"(?:{'|'.join(gap_variants)})*"
 
@@ -125,6 +137,8 @@ def _build_protocol_regex():
         "&colon;?",
         "\uff1a",
         "\ufe55",
+        "\u2236",
+        "\u205a",
     ]
     colon_pattern = rf"{gap_pattern}(?:{'|'.join(colon_variants)})"
     # Added gap_pattern at the start to catch obfuscated protocols with leading characters
@@ -269,6 +283,8 @@ def sanitize_markdown(text):
         and "%" not in text
         and "\uff1a" not in text
         and "\ufe55" not in text
+        and "\u2236" not in text
+        and "\u205a" not in text
     ):
         return text
 
