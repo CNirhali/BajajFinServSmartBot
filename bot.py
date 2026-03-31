@@ -404,7 +404,7 @@ def format_source_label(context):
     # Affordance: Add icons based on file type for better visual scannability.
     safe_sources = []
     for s in sources:
-        icon = "📊" if s.lower().endswith(".csv") else "📄"
+        icon = ":material/bar_chart:" if s.lower().endswith(".csv") else ":material/description:"
         safe_sources.append(f"{icon} {sanitize_markdown(s)}")
     source_names = ", ".join(safe_sources)
 
