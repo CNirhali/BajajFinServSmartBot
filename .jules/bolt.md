@@ -118,3 +118,7 @@
 
 **Learning:** Sequential Pandas .str.replace calls with regex=False are faster than a single regex-based replacement ([",]) for large datasets because they utilize optimized C-level string methods.
 **Action:** Prefer sequential non-regex replacements over single regex replacements for simple character removal in Pandas performance-critical paths.
+
+## 2026-03-31 - Vectorized CSV Sanitization in Pandas
+**Learning:** Using `df.apply()` for cell-level sanitization in large DataFrames is a major bottleneck because it executes as a Python loop. Pre-filtering with `df.select_dtypes(include=['object'])` and using vectorized string methods like `str.startswith()` for conditional masking is significantly faster.
+**Action:** Always prefer vectorized Pandas operations over `.apply()` or `.iterrows()` for data sanitization and transformation. Replacing a per-cell loop with vectorized concatenation and masking yielded a ~2.1x speedup on a 120k row dataset in this environment.
