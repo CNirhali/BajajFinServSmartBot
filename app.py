@@ -398,7 +398,8 @@ with st.expander("⚙️ System Administration"):
                 )
         except Exception as e:
             # Security: Mask raw exception details and log to server
-            print(f"[ERROR] Re-indexing failed: {e}")
+            # Security Enhancement: Use sanitize_log to prevent Log Injection.
+            print(sanitize_log(f"[ERROR] Re-indexing failed: {e}"))
             st.error(
                 "⚠️ Re-indexing failed. Please check the server logs or contact your administrator."
             )
@@ -469,7 +470,8 @@ if uploaded_files:
                 saved_filenames.append(uploaded_file.name)
             except Exception as e:
                 # Security: Mask raw exception details in the UI and log to server
-                print(f"[ERROR] Failed to save {uploaded_file.name}: {e}")
+                # Security Enhancement: Use sanitize_log to prevent Log Injection.
+                print(sanitize_log(f"[ERROR] Failed to save {uploaded_file.name}: {e}"))
                 st.error(
                     f"Error saving {uploaded_file.name}. Please contact your administrator."
                 )
@@ -497,7 +499,8 @@ if uploaded_files:
                 )
         except Exception as e:
             # Security: Mask raw exception details and log to server
-            print(f"[ERROR] Ingestion failed: {e}")
+            # Security Enhancement: Use sanitize_log to prevent Log Injection.
+            print(sanitize_log(f"[ERROR] Ingestion failed: {e}"))
             st.error("⚠️ Ingestion of new files failed. Please check the server logs.")
             st.stop()
 
@@ -800,7 +803,8 @@ if submit_button:
                     st.toast("Response generated!", icon=":material/forum:")
                 except Exception as e:
                     # Security: Mask raw exception details and log to server
-                    print(f"[ERROR] Chat query failed: {e}")
+                    # Security Enhancement: Use sanitize_log to prevent Log Injection.
+                    print(sanitize_log(f"[ERROR] Chat query failed: {e}"))
                     st.error(
                         "⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running."
                     )
@@ -917,7 +921,8 @@ if not st.session_state["chat_history"]:
                         st.rerun()
                     except Exception as e:
                         # Security: Mask raw exception details and log to server
-                        print(f"[ERROR] Quick start suggestion failed: {e}")
+                        # Security Enhancement: Use sanitize_log to prevent Log Injection.
+                        print(sanitize_log(f"[ERROR] Quick start suggestion failed: {e}"))
                         st.error(
                             "⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running."
                         )

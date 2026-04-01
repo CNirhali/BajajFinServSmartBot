@@ -19,10 +19,10 @@ RE_MD_IMAGE = re.compile(r"!+\[")
 # Used in ask_mistral_ollama to escape LLM control tokens (Mistral/Llama/System)
 # Splitting into two patterns allows using fast regex-native backreferences
 # instead of a slower Python function call for substitution.
-def _build_control_token_regex(tags, wrapper):
+def _build_control_token_regex(tags, wrappers):
     """
     Builds a regex to match control tokens with internal obfuscation.
-    wrapper: tuple of (opening, closing) characters, e.g. ('[', ']')
+    wrappers: list of tuples of (opening, closing) characters, e.g. [('[', ']')]
     """
     # Expanded: Includes additional invisible/format Unicode characters to prevent obfuscation bypasses.
     gap = r"[\s\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]"
@@ -31,8 +31,12 @@ def _build_control_token_regex(tags, wrapper):
         # Each character in the tag can be followed by optional gaps/spaces
         tag_patterns.append(f"{gap}*".join([re.escape(c) for c in tag]))
 
-    opening = re.escape(wrapper[0])
-    closing = re.escape(wrapper[1])
+    opening_chars = [re.escape(w[0]) for w in wrappers]
+    closing_chars = [re.escape(w[1]) for w in wrappers]
+
+    opening = f"[{''.join(opening_chars)}]"
+    closing = f"[{''.join(closing_chars)}]"
+
     return re.compile(
         rf"{opening}{gap}*(?P<slash>/?){gap}*(?P<tag>{'|'.join(tag_patterns)}){gap}*{closing}",
         re.IGNORECASE,
@@ -41,11 +45,12 @@ def _build_control_token_regex(tags, wrapper):
 
 # Enhanced: Matches tags even with internal whitespace or Unicode zero-width characters to prevent bypasses.
 # Expanded: Includes additional common LLM control tokens (USER, ASST, TOOL, etc.).
+# Support for Fullwidth Unicode brackets (U+FF3B, U+FF3D) and angles (U+FF1C, U+FF1E).
 RE_CONTROL_BRACKET = _build_control_token_regex(
     ["INST", "SYS", "USER", "ASST", "TOOL", "TOOL_CALLS", "TOOL_RESULTS", "AVAILABLE_TOOLS"],
-    ("[", "]"),
+    [("[", "]"), ("\uff3b", "\uff3d")],
 )
-RE_CONTROL_ANGLE = _build_control_token_regex(["s"], ("<", ">"))
+RE_CONTROL_ANGLE = _build_control_token_regex(["s"], [("<", ">"), ("\uff1c", "\uff1e")])
 
 # Pre-compiled regex for zero-width and format characters to improve performance in _escape_control_tokens
 # Expanded: Includes directional formatting and invisible formatters.
@@ -129,6 +134,7 @@ def _build_protocol_regex():
     # Match various colon representations: literal, encoded, entities with optional semicolon,
     # and Unicode fullwidth/small colon variants.
     # e.g. :, %3a, &#x3a, &#x3a;, &#058, &#058;, &colon, &colon;, ：, ﹕
+    # Expanded with additional Unicode colon-like characters (Ratio, Two Dot Punctuation, etc.)
     colon_variants = [
         ":",
         "%3a",
@@ -139,6 +145,10 @@ def _build_protocol_regex():
         "\ufe55",
         "\u2236",
         "\u205a",
+        "\ua789",
+        "\u0589",
+        "\u1804",
+        "\u205d",
     ]
     colon_pattern = rf"{gap_pattern}(?:{'|'.join(colon_variants)})"
     # Added gap_pattern at the start to catch obfuscated protocols with leading characters
@@ -154,6 +164,7 @@ def _clean_tag(match):
     Helper function to clean up and format LLM control tags during substitution.
     Moved to module level to avoid re-definition overhead in _escape_control_tokens.
     """
+    raw_match = match.group(0)
     slash = match.group("slash") or ""
     tag = match.group("tag")
     # Remove any internal obfuscation from the tag name for the replacement
@@ -161,7 +172,10 @@ def _clean_tag(match):
     # Uses the pre-compiled RE_ZERO_WIDTH which includes an expanded set of invisible characters.
     clean_tag = RE_ZERO_WIDTH.sub("", tag)
     clean_tag = re.sub(r"\s", "", clean_tag).upper()
-    if "[" in match.group(0):
+
+    # Identify the bracket type for correct neutralization formatting.
+    # Checks both standard and Fullwidth Unicode variants.
+    if "[" in raw_match or "\uff3b" in raw_match:
         return f"[ {slash}{clean_tag} ]"
     return f"< {slash}{clean_tag} >"
 
@@ -285,6 +299,10 @@ def sanitize_markdown(text):
         and "\ufe55" not in text
         and "\u2236" not in text
         and "\u205a" not in text
+        and "\ua789" not in text
+        and "\u0589" not in text
+        and "\u1804" not in text
+        and "\u205d" not in text
     ):
         return text
 
@@ -313,7 +331,13 @@ def _escape_control_tokens(text):
     Optimized: Added lru_cache to skip repeated processing for reused chunks.
     """
     # Fast-path: Skip expensive regex operations if no potential control tokens exist.
-    if "[" not in text and "<" not in text:
+    # Included Fullwidth bracket and angle variants in fast-path check.
+    if (
+        "[" not in text
+        and "<" not in text
+        and "\uff3b" not in text
+        and "\uff1c" not in text
+    ):
         return text
 
     # Optimized: Use character-in-string check before calling regex for zero-width removal.
@@ -322,9 +346,10 @@ def _escape_control_tokens(text):
         text = RE_ZERO_WIDTH.sub("", text)
 
     # Optimized: Use pre-defined _clean_tag and granular character checks to bypass sub() calls.
-    if "[" in text:
+    # Included Fullwidth bracket and angle variants in character checks.
+    if "[" in text or "\uff3b" in text:
         text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
-    if "<" in text:
+    if "<" in text or "\uff1c" in text:
         text = RE_CONTROL_ANGLE.sub(_clean_tag, text)
 
     return text
