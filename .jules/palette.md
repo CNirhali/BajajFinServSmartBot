@@ -46,3 +46,7 @@
 ## 2026-03-30 - [Information Scent & Modernized Suggestions]
 **Learning:** Increasing "information scent" by adding dynamic metadata (like file counts) to navigation triggers (like popovers) provides immediate context and reduces unnecessary interactions. For "Quick Start" interfaces, replacing generic icons with context-specific Material Symbols and moving long labels to tooltips significantly improves visual scannability and professional feel.
 **Action:** Always look for opportunities to surface system state in button labels and use context-aware iconography to aid rapid visual identification of features.
+
+## 2026-03-31 - [Material Symbols and Color Markers]
+**Learning:** In Streamlit markdown, Material Symbols (`:material/icon_name:`) do not render correctly if nested inside inline color blocks (e.g., `:green[:material/check_circle: Text]`). The icon must be placed outside the color block: `:material/check_circle: :green[Text]`.
+**Action:** Always place Material Symbols outside of Streamlit color markers to ensure proper rendering and visual consistency.

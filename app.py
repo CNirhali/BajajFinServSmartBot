@@ -214,7 +214,7 @@ with st.sidebar:
             st.session_state["full_export_text"] = (
                 "=== Bajaj Finserv SmartBot Session Export ===\n\n"
             )
-            st.toast("Chat history cleared!", icon="🗑️")
+            st.toast("Chat history cleared!", icon=":material/delete_sweep:")
             time.sleep(0.5)
             st.rerun()
         if c2.button(
@@ -298,7 +298,7 @@ st.markdown("# 🤖 Bajaj Finserv SmartBot")
 h1, h2 = st.columns([0.7, 0.3])
 with h1:
     st.markdown(f"""
-    :green[🟢 Assistant Ready] | :grey[🕒 Last updated: {last_updated}]
+    :material/check_circle: :green[Assistant Ready] | :material/history: :grey[Last updated: {last_updated}]
 
     **Knowledge Base:** :blue[{pdf_count} PDFs] | :green[{csv_count} CSVs] | :orange[{total_size_str} total]
 
@@ -311,7 +311,7 @@ with h2:
         width="stretch",
         icon=":material/inventory_2:",
     ):
-        st.markdown("### 🗂️ Indexed Files")
+        st.markdown("### :material/folder_managed: Indexed Files")
         search_term = st.text_input(
             "Search indexed files",
             placeholder="Search filenames...",
@@ -325,7 +325,7 @@ with h2:
 
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f"**📄 PDFs ({len(filtered_pdfs)}/{pdf_count})**")
+            st.markdown(f"**:material/description: PDFs ({len(filtered_pdfs)}/{pdf_count})**")
             with st.container(height=200):
                 if not filtered_pdfs:
                     if search_term:
@@ -334,9 +334,9 @@ with h2:
                         st.caption(":grey[*No PDF documents indexed*]")
                 for f in filtered_pdfs:
                     # Optimized: Filename is already sanitized in get_knowledge_base_details.
-                    st.caption(f"📄 {f['name']} :grey[({f['size']})]")
+                    st.caption(f":material/description: {f['name']} :grey[({f['size']})]")
         with c2:
-            st.markdown(f"**📊 CSVs ({len(filtered_csvs)}/{csv_count})**")
+            st.markdown(f"**:material/bar_chart: CSVs ({len(filtered_csvs)}/{csv_count})**")
             with st.container(height=200):
                 if not filtered_csvs:
                     if search_term:
@@ -345,7 +345,7 @@ with h2:
                         st.caption(":grey[*No CSV data files indexed*]")
                 for f in filtered_csvs:
                     # Optimized: Filename is already sanitized in get_knowledge_base_details.
-                    st.caption(f"📊 {f['name']} :grey[({f['size']})]")
+                    st.caption(f":material/bar_chart: {f['name']} :grey[({f['size']})]")
 
 st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 
@@ -403,7 +403,7 @@ with st.expander("⚙️ System Administration"):
                 "⚠️ Re-indexing failed. Please check the server logs or contact your administrator."
             )
             st.stop()
-        st.toast("✅ Knowledge base re-indexed successfully!", icon="🚀")
+        st.toast("✅ Knowledge base re-indexed successfully!", icon=":material/rocket_launch:")
 
 st.markdown("---")
 
@@ -502,12 +502,12 @@ if uploaded_files:
             st.stop()
 
         st.session_state["indexed_files"] = sorted(saved_filenames)
-        st.toast("✅ Files uploaded and indexed successfully!", icon="📁")
+        st.toast("✅ Files uploaded and indexed successfully!", icon=":material/cloud_done:")
 
 st.markdown("---")
 
 # --- Analytics Section ---
-st.markdown("## 📊 BFS & Sensex Price Trends")
+st.markdown("## :material/analytics: BFS & Sensex Price Trends")
 
 
 @st.cache_data(show_spinner=False)
@@ -597,7 +597,7 @@ if bfs_path and sensex_path:
             latest_date = merged["Date"].iloc[-1].strftime("%b %d, %Y")
 
             tab1, tab2, tab3 = st.tabs(
-                ["📈 Price Trend", "📊 Relative Performance", "🗂️ Data Table"]
+                [":material/trending_up: Price Trend", ":material/bar_chart: Relative Performance", ":material/table_view: Data Table"]
             )
 
             with tab1:
@@ -711,7 +711,7 @@ if "chat_history" not in st.session_state:
 if "full_export_text" not in st.session_state:
     st.session_state["full_export_text"] = "=== Bajaj Finserv SmartBot Session Export ===\n\n"
 
-st.markdown("## 💬 Ask a question")
+st.markdown("## :material/forum: Ask a question")
 # Optimized: Using st.form for better keyboard accessibility (Enter key) and batching updates
 
 # Using st.form for better keyboard accessibility (Enter key)
@@ -761,7 +761,7 @@ if submit_button:
 
                     ui_context = []
                     for src in sorted(grouped_context.keys()):
-                        icon = "📊" if src.lower().endswith(".csv") else "📄"
+                        icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
                         ui_context.append(
                             {
                                 "source_label": f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]",
@@ -797,7 +797,7 @@ if submit_button:
                     export_text += f"User: {new_chat['query']}\n"
                     export_text += f"Assistant: {new_chat['answer']}\n\n"
                     st.session_state["full_export_text"] = export_text
-                    st.toast("Response generated!", icon="💬")
+                    st.toast("Response generated!", icon=":material/forum:")
                 except Exception as e:
                     # Security: Mask raw exception details and log to server
                     print(f"[ERROR] Chat query failed: {e}")
@@ -809,7 +809,7 @@ if submit_button:
 
 # --- Chat History ---
 history_count = len(st.session_state.get("chat_history", []))
-st.markdown(f"## 🗂️ Chat History ({history_count})")
+st.markdown(f"## :material/folder_managed: Chat History ({history_count})")
 
 if not st.session_state["chat_history"]:
     with st.chat_message("assistant", avatar=":material/smart_toy:"):
@@ -879,7 +879,7 @@ if not st.session_state["chat_history"]:
 
                         ui_context = []
                         for src in sorted(grouped_context.keys()):
-                            icon = "📊" if src.lower().endswith(".csv") else "📄"
+                            icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
                             ui_context.append(
                                 {
                                     "source_label": f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]",
@@ -913,7 +913,7 @@ if not st.session_state["chat_history"]:
                         export_text += f"User: {new_chat['query']}\n"
                         export_text += f"Assistant: {new_chat['answer']}\n\n"
                         st.session_state["full_export_text"] = export_text
-                        st.toast("Response generated!", icon="💬")
+                        st.toast("Response generated!", icon=":material/forum:")
                         st.rerun()
                     except Exception as e:
                         # Security: Mask raw exception details and log to server
@@ -924,7 +924,7 @@ if not st.session_state["chat_history"]:
 else:
     for i, chat in enumerate(reversed(st.session_state["chat_history"])):
         ts = chat.get("timestamp", "")
-        st.markdown(f"### 💬 Interaction {history_count - i} :grey[({ts})]")
+        st.markdown(f"### :material/forum: Interaction {history_count - i} :grey[({ts})]")
         with st.chat_message("user", avatar=":material/person:"):
             # Optimized: User query is already sanitized before storage.
             st.markdown(chat["query"])
@@ -960,7 +960,7 @@ else:
                         grouped_context[item["source"]].append(item["text"])
 
                     for src in sorted(grouped_context.keys()):
-                        icon = "📊" if src.lower().endswith(".csv") else "📄"
+                        icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
                         st.markdown(
                             f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]"
                         )
