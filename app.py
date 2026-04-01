@@ -5,6 +5,7 @@ import os
 import secrets
 import time
 import math
+import re
 import pandas as pd
 from collections import defaultdict
 
@@ -200,7 +201,10 @@ with st.sidebar:
         width="stretch",
         icon=":material/delete_sweep:",
     ):
-        st.warning(f"Are you sure you want to clear all {history_count} {int_text}?")
+        st.warning(
+            f"Are you sure you want to clear all {history_count} {int_text}?",
+            icon=":material/warning:",
+        )
         c1, c2 = st.columns(2, gap="small")
         if c1.button(
             "Yes, clear",
@@ -254,7 +258,8 @@ with st.sidebar:
         icon=":material/logout:",
     ):
         st.warning(
-            f"Are you sure you want to logout? This will clear all {history_count} {int_text} from your current session."
+            f"Are you sure you want to logout? This will clear all {history_count} {int_text} from your current session.",
+            icon=":material/warning:",
         )
         c1, c2 = st.columns(2, gap="small")
         if c1.button(
@@ -764,7 +769,7 @@ if submit_button:
                         icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
                         ui_context.append(
                             {
-                                "source_label": f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]",
+                                "source_label": f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**]",
                                 "content": "\n\n".join(grouped_context[src]),
                             }
                         )
@@ -882,7 +887,7 @@ if not st.session_state["chat_history"]:
                             icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
                             ui_context.append(
                                 {
-                                    "source_label": f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]",
+                                    "source_label": f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**]",
                                     "content": "\n\n".join(grouped_context[src]),
                                 }
                             )
@@ -962,7 +967,7 @@ else:
                     for src in sorted(grouped_context.keys()):
                         icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
                         st.markdown(
-                            f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]"
+                            f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**]"
                         )
                         st.code("\n\n".join(grouped_context[src]), language=None)
 
@@ -979,10 +984,13 @@ else:
                         )
                     download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{context_str}"
 
+                sanitized_query = re.sub(
+                    r"[^a-z0-9]+", "_", chat["query"][:30].lower()
+                ).strip("_")
                 st.download_button(
                     label="Download Answer & Context",
                     data=download_text,
-                    file_name=f"bfs_smartbot_answer_{history_count - i}.txt",
+                    file_name=f"bfs_smartbot_answer_{history_count - i}_{sanitized_query}.txt",
                     mime="text/plain",
                     key=f"download_{history_count - i}",
                     help="Download this specific answer and its supporting context as a text file for your records.",
