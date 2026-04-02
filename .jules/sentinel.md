@@ -128,6 +128,10 @@
 2. Extend protocol sanitization regexes to include functional Unicode colon variants and common named HTML entities for whitespace and control characters.
 3. Ensure fast-path checks in sanitization logic are updated to include all new trigger characters (like `&` and specific Unicode variants) to avoid accidental bypasses.
 
+## 2026-04-05 - [Control Token Bypass via Fullwidth Unicode Brackets]
+**Vulnerability:** LLM control token filters (e.g., `[INST]`, `<s>`) can be bypassed using Fullwidth Unicode variants of brackets and angles (e.g., `［`, `］`, `＜`, `＞`).
+**Learning:** Browsers and some LLM tokenizers may treat these Unicode variants (U+FF3B, U+FF3D, U+FF1C, U+FF1E) as equivalent to their ASCII counterparts, allowing an attacker to inject instructions that bypass standard string or regex filters.
+**Prevention:** Extend control token regexes to include Fullwidth Unicode brackets and angles. Ensure that fast-path checks and normalization logic in sanitization helpers (like `_clean_tag`) are also aware of these variants to provide comprehensive coverage.
 ## 2026-04-01 - [Hardening Security Filters against Unicode Fullwidth Variants]
 **Vulnerability:** XSS and Prompt Injection bypasses via Unicode Fullwidth homoglyphs (e.g., `！`, `［`, `］`, `＜`, `＞`) and visual/functional Unicode colon variants (e.g., `꞉` \ua789, `᠄` \u1804).
 **Learning:** Security filters that strictly target ASCII characters are susceptible to bypasses using Unicode characters that browsers or LLM tokenizers treat as visually or functionally equivalent to structural markers (like brackets or colons).
