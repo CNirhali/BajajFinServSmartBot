@@ -58,3 +58,7 @@
 ## 2026-04-01 - [Visual Urgency for Confirmation Dialogs]
 **Learning:** Using the `icon` parameter in `st.warning` (e.g., `icon=":material/warning:"`) within confirmation popovers provides stronger visual reinforcement of the action's severity compared to just text and colors.
 **Action:** Always include a relevant Material Symbol in warning/confirmation blocks to aid quick visual categorization of the interaction.
+
+## 2026-04-02 - [Visual Checklists for Feature Gating]
+**Learning:** For features that require specific files (like analytics), a generic info message is often overlooked. Using a visual checklist with Material Symbols (':material/check_circle:' vs ':material/pending:') and color coding (green vs grey) provides immediate, scannable feedback on what's missing, reducing user frustration and support queries.
+**Action:** Always use side-by-side visual checklists to communicate feature requirements or multi-step setup progress.
