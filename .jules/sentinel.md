@@ -127,3 +127,8 @@
 1. Regularly audit and expand the URI protocol blocklist with modern and platform-specific dangerous schemes.
 2. Extend protocol sanitization regexes to include functional Unicode colon variants and common named HTML entities for whitespace and control characters.
 3. Ensure fast-path checks in sanitization logic are updated to include all new trigger characters (like `&` and specific Unicode variants) to avoid accidental bypasses.
+
+## 2026-04-01 - [Hardening Security Filters against Unicode Fullwidth Variants]
+**Vulnerability:** XSS and Prompt Injection bypasses via Unicode Fullwidth homoglyphs (e.g., `！`, `［`, `］`, `＜`, `＞`) and visual/functional Unicode colon variants (e.g., `꞉` \ua789, `᠄` \u1804).
+**Learning:** Security filters that strictly target ASCII characters are susceptible to bypasses using Unicode characters that browsers or LLM tokenizers treat as visually or functionally equivalent to structural markers (like brackets or colons).
+**Prevention:** Extend security regexes and fast-path string checks to include Fullwidth and other visual homoglyphs for all structural characters used in markdown and LLM templates. Implement normalization in replacement logic to ensure these variants are converted to safe representations.
