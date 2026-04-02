@@ -5,6 +5,7 @@ import os
 import secrets
 import time
 import math
+import re
 import pandas as pd
 from collections import defaultdict
 
@@ -200,7 +201,10 @@ with st.sidebar:
         width="stretch",
         icon=":material/delete_sweep:",
     ):
-        st.warning(f"Are you sure you want to clear all {history_count} {int_text}?")
+        st.warning(
+            f"Are you sure you want to clear all {history_count} {int_text}?",
+            icon=":material/warning:",
+        )
         c1, c2 = st.columns(2, gap="small")
         if c1.button(
             "Yes, clear",
@@ -254,7 +258,8 @@ with st.sidebar:
         icon=":material/logout:",
     ):
         st.warning(
-            f"Are you sure you want to logout? This will clear all {history_count} {int_text} from your current session."
+            f"Are you sure you want to logout? This will clear all {history_count} {int_text} from your current session.",
+            icon=":material/warning:",
         )
         c1, c2 = st.columns(2, gap="small")
         if c1.button(
@@ -702,7 +707,22 @@ if bfs_path and sensex_path:
         st.warning(merged)
 else:
     st.info(
-        "Upload both BFS_Daily_Closing_Price.csv and Sensex_Daily_Historical_Data.csv to see price trends."
+        "To unlock price trends and performance analytics, please ensure both historical CSV files are present in the knowledge base.",
+        icon=":material/analytics:",
+    )
+    c1, c2 = st.columns(2)
+    with c1:
+        if bfs_path:
+            st.markdown(":material/check_circle: :green[**BFS_Daily_Closing_Price.csv**]")
+        else:
+            st.markdown(":material/pending: :grey[BFS_Daily_Closing_Price.csv]")
+    with c2:
+        if sensex_path:
+            st.markdown(":material/check_circle: :green[**Sensex_Daily_Historical_Data.csv**]")
+        else:
+            st.markdown(":material/pending: :grey[Sensex_Daily_Historical_Data.csv]")
+    st.caption(
+        "💡 **Tip:** You can upload these files in the section above. The bot will automatically detect them and generate the charts."
     )
 
 st.markdown("---")
@@ -767,7 +787,7 @@ if submit_button:
                         icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
                         ui_context.append(
                             {
-                                "source_label": f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]",
+                                "source_label": f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**]",
                                 "content": "\n\n".join(grouped_context[src]),
                             }
                         )
@@ -775,6 +795,12 @@ if submit_button:
                     # Optimized: Pre-calculate the individual download text (query + answer + context)
                     # to avoid expensive string joining and formatting during interaction-triggered reruns.
                     download_text = f"Question: {query}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
+
+                    # Optimized: Pre-calculate sanitized query for filename to avoid redundant regex
+                    # work during the rendering loop of every Streamlit rerun.
+                    sanitized_query_filename = re.sub(
+                        r"[^a-z0-9]+", "_", query[:30].lower()
+                    ).strip("_")
 
                     # Optimized: Pre-calculate UI metadata and sanitize user query once before storing to history,
                     # reducing CPU overhead during subsequent UI reruns.
@@ -784,6 +810,7 @@ if submit_button:
                         "context": context,
                         "context_full_text": context_full_text,
                         "individual_download_text": download_text,
+                        "sanitized_query_filename": sanitized_query_filename,
                         "expander_label": expander_label,
                         "ui_context": ui_context,
                         "timestamp": time.strftime("%H:%M"),
@@ -886,13 +913,18 @@ if not st.session_state["chat_history"]:
                             icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
                             ui_context.append(
                                 {
-                                    "source_label": f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]",
+                                    "source_label": f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**]",
                                     "content": "\n\n".join(grouped_context[src]),
                                 }
                             )
 
                         # Optimized: Pre-calculate the individual download text for suggestions.
                         download_text = f"Question: {suggestion}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
+
+                        # Optimized: Pre-calculate sanitized query for filename.
+                        sanitized_query_filename = re.sub(
+                            r"[^a-z0-9]+", "_", suggestion[:30].lower()
+                        ).strip("_")
 
                         # Optimized: Pre-calculate UI metadata and sanitize suggestion once before storing to history.
                         new_chat = {
@@ -901,6 +933,7 @@ if not st.session_state["chat_history"]:
                             "context": context,
                             "context_full_text": context_full_text,
                             "individual_download_text": download_text,
+                            "sanitized_query_filename": sanitized_query_filename,
                             "expander_label": expander_label,
                             "ui_context": ui_context,
                             "timestamp": time.strftime("%H:%M"),
@@ -967,7 +1000,7 @@ else:
                     for src in sorted(grouped_context.keys()):
                         icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
                         st.markdown(
-                            f":blue[**Source: {icon} {bot.sanitize_markdown(src)}**]"
+                            f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**]"
                         )
                         st.code("\n\n".join(grouped_context[src]), language=None)
 
@@ -984,10 +1017,17 @@ else:
                         )
                     download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{context_str}"
 
+                # Optimized: Use pre-calculated sanitized query for filename from session state.
+                sanitized_query = chat.get("sanitized_query_filename")
+                if not sanitized_query:
+                    sanitized_query = re.sub(
+                        r"[^a-z0-9]+", "_", chat["query"][:30].lower()
+                    ).strip("_")
+
                 st.download_button(
                     label="Download Answer & Context",
                     data=download_text,
-                    file_name=f"bfs_smartbot_answer_{history_count - i}.txt",
+                    file_name=f"bfs_smartbot_answer_{history_count - i}_{sanitized_query}.txt",
                     mime="text/plain",
                     key=f"download_{history_count - i}",
                     help="Download this specific answer and its supporting context as a text file for your records.",

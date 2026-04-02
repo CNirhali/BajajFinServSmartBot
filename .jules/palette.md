@@ -50,3 +50,15 @@
 ## 2026-03-31 - [Material Symbols and Color Markers]
 **Learning:** In Streamlit markdown, Material Symbols (`:material/icon_name:`) do not render correctly if nested inside inline color blocks (e.g., `:green[:material/check_circle: Text]`). The icon must be placed outside the color block: `:material/check_circle: :green[Text]`.
 **Action:** Always place Material Symbols outside of Streamlit color markers to ensure proper rendering and visual consistency.
+
+## 2026-04-01 - [Contextual Filenames for Chat Exports]
+**Learning:** For individual chat interaction downloads, including a sanitized snippet of the user query in the filename significantly improves the user's ability to manage and identify files locally without opening them.
+**Action:** Use a regex (e.g., `re.sub(r'[^a-z0-9]+', '_', query[:30].lower()).strip('_')`) to include descriptive snippets in export filenames.
+
+## 2026-04-01 - [Visual Urgency for Confirmation Dialogs]
+**Learning:** Using the `icon` parameter in `st.warning` (e.g., `icon=":material/warning:"`) within confirmation popovers provides stronger visual reinforcement of the action's severity compared to just text and colors.
+**Action:** Always include a relevant Material Symbol in warning/confirmation blocks to aid quick visual categorization of the interaction.
+
+## 2026-04-02 - [Visual Checklists for Feature Gating]
+**Learning:** For features that require specific files (like analytics), a generic info message is often overlooked. Using a visual checklist with Material Symbols (':material/check_circle:' vs ':material/pending:') and color coding (green vs grey) provides immediate, scannable feedback on what's missing, reducing user frustration and support queries.
+**Action:** Always use side-by-side visual checklists to communicate feature requirements or multi-step setup progress.

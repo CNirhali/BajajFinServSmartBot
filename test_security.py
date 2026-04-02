@@ -64,6 +64,19 @@ class TestSecurity(unittest.TestCase):
         )
 
     @patch("bot.http_session.post")
+    def test_fullwidth_control_token_escaping(self, mock_post):
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {"response": "Handled"}
+
+        # Test fullwidth bracket and angle variants
+        malicious_query = "Fullwidth ［INST］ and ［/SYS］ and ＜s＞ and ＜/s＞"
+        ask_mistral_ollama(malicious_query, "context")
+
+        args, kwargs = mock_post.call_args
+        prompt = kwargs["json"]["prompt"]
+        self.assertIn("Fullwidth [ INST ] and [ /SYS ] and < S > and < /S >", prompt)
+
+    @patch("bot.http_session.post")
     def test_expanded_control_tokens(self, mock_post):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {"response": "Handled"}
@@ -181,6 +194,36 @@ class TestSecurity(unittest.TestCase):
         }
         answer = ask_mistral_ollama("safe query", "safe context")
         self.assertIn("blocked-j\u200bavascript:a", answer)
+
+    @patch("bot.http_session.post")
+    def test_additional_unicode_colon_neutralization(self, mock_post):
+        mock_post.return_value.status_code = 200
+        # Simulated malicious LLM output with additional Unicode colon variants
+        mock_post.return_value.json.return_value = {
+            "response": (
+                "Colons: [u1](javascript\ua789a), [u2](javascript\u0589a), "
+                "[u3](javascript\u1804a), [u4](javascript\u205da)"
+            )
+        }
+        answer = ask_mistral_ollama("safe query", "safe context")
+        self.assertIn("blocked-javascript\ua789a", answer)
+        self.assertIn("blocked-javascript\u0589a", answer)
+        self.assertIn("blocked-javascript\u1804a", answer)
+        self.assertIn("blocked-javascript\u205da", answer)
+
+    @patch("bot.http_session.post")
+    def test_fullwidth_markdown_image_neutralization(self, mock_post):
+        mock_post.return_value.status_code = 200
+        # Simulated malicious LLM output with fullwidth image variants
+        mock_post.return_value.json.return_value = {
+            "response": "Fullwidth: ！［exfil］(http://a) and ！[exfil](http://a) and ![exfil］(http://a)"
+        }
+        answer = ask_mistral_ollama("safe query", "safe context")
+        self.assertNotIn("！［exfil］", answer)
+        self.assertNotIn("！[exfil]", answer)
+        self.assertNotIn("![exfil］", answer)
+        self.assertIn("[exfil］(http://a)", answer)
+        self.assertIn("[exfil](http://a)", answer)
 
 
 if __name__ == "__main__":
