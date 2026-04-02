@@ -122,3 +122,7 @@
 ## 2026-03-31 - Vectorized CSV Sanitization in Pandas
 **Learning:** Using `df.apply()` for cell-level sanitization in large DataFrames is a major bottleneck because it executes as a Python loop. Pre-filtering with `df.select_dtypes(include=['object'])` and using vectorized string methods like `str.startswith()` for conditional masking is significantly faster.
 **Action:** Always prefer vectorized Pandas operations over `.apply()` or `.iterrows()` for data sanitization and transformation. Replacing a per-cell loop with vectorized concatenation and masking yielded a ~2.1x speedup on a 120k row dataset in this environment.
+
+## 2026-04-02 - Granular Fast-Paths and UI Pre-calculation
+**Learning:** Broad fast-path checks that combine multiple triggers (e.g., '!' and ':') can cause performance degradation by triggering heavy regex scans for unrelated patterns (e.g., a simple exclamation mark triggering a full protocol URI scan). Furthermore, performing regex-based string sanitization inside Streamlit's rendering loop creates (N)$ overhead that compounds as chat history grows.
+**Action:** Implement granular, trigger-specific fast-paths to isolate expensive regex operations. Pre-calculate all UI-specific string metadata (like sanitized filenames) at the time of data creation and store it in session state to ensure the rendering loop remains (1)$ per item regardless of string complexity.

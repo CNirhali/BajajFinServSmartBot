@@ -778,6 +778,12 @@ if submit_button:
                     # to avoid expensive string joining and formatting during interaction-triggered reruns.
                     download_text = f"Question: {query}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
 
+                    # Optimized: Pre-calculate sanitized query for filename to avoid redundant regex
+                    # work during the rendering loop of every Streamlit rerun.
+                    sanitized_query_filename = re.sub(
+                        r"[^a-z0-9]+", "_", query[:30].lower()
+                    ).strip("_")
+
                     # Optimized: Pre-calculate UI metadata and sanitize user query once before storing to history,
                     # reducing CPU overhead during subsequent UI reruns.
                     new_chat = {
@@ -786,6 +792,7 @@ if submit_button:
                         "context": context,
                         "context_full_text": context_full_text,
                         "individual_download_text": download_text,
+                        "sanitized_query_filename": sanitized_query_filename,
                         "expander_label": expander_label,
                         "ui_context": ui_context,
                         "timestamp": time.strftime("%H:%M"),
@@ -895,6 +902,11 @@ if not st.session_state["chat_history"]:
                         # Optimized: Pre-calculate the individual download text for suggestions.
                         download_text = f"Question: {suggestion}\n\nAnswer: {answer}\n\nContext:\n{context_full_text}"
 
+                        # Optimized: Pre-calculate sanitized query for filename.
+                        sanitized_query_filename = re.sub(
+                            r"[^a-z0-9]+", "_", suggestion[:30].lower()
+                        ).strip("_")
+
                         # Optimized: Pre-calculate UI metadata and sanitize suggestion once before storing to history.
                         new_chat = {
                             "query": bot.sanitize_markdown(suggestion),
@@ -902,6 +914,7 @@ if not st.session_state["chat_history"]:
                             "context": context,
                             "context_full_text": context_full_text,
                             "individual_download_text": download_text,
+                            "sanitized_query_filename": sanitized_query_filename,
                             "expander_label": expander_label,
                             "ui_context": ui_context,
                             "timestamp": time.strftime("%H:%M"),
@@ -984,9 +997,13 @@ else:
                         )
                     download_text = f"Question: {chat['query']}\n\nAnswer: {chat['answer']}\n\nContext:\n{context_str}"
 
-                sanitized_query = re.sub(
-                    r"[^a-z0-9]+", "_", chat["query"][:30].lower()
-                ).strip("_")
+                # Optimized: Use pre-calculated sanitized query for filename from session state.
+                sanitized_query = chat.get("sanitized_query_filename")
+                if not sanitized_query:
+                    sanitized_query = re.sub(
+                        r"[^a-z0-9]+", "_", chat["query"][:30].lower()
+                    ).strip("_")
+
                 st.download_button(
                     label="Download Answer & Context",
                     data=download_text,
