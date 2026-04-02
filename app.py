@@ -704,7 +704,22 @@ if bfs_path and sensex_path:
         st.warning(merged)
 else:
     st.info(
-        "Upload both BFS_Daily_Closing_Price.csv and Sensex_Daily_Historical_Data.csv to see price trends."
+        "To unlock price trends and performance analytics, please ensure both historical CSV files are present in the knowledge base.",
+        icon=":material/analytics:",
+    )
+    c1, c2 = st.columns(2)
+    with c1:
+        if bfs_path:
+            st.markdown(":material/check_circle: :green[**BFS_Daily_Closing_Price.csv**]")
+        else:
+            st.markdown(":material/pending: :grey[BFS_Daily_Closing_Price.csv]")
+    with c2:
+        if sensex_path:
+            st.markdown(":material/check_circle: :green[**Sensex_Daily_Historical_Data.csv**]")
+        else:
+            st.markdown(":material/pending: :grey[Sensex_Daily_Historical_Data.csv]")
+    st.caption(
+        "💡 **Tip:** You can upload these files in the section above. The bot will automatically detect them and generate the charts."
     )
 
 st.markdown("---")
