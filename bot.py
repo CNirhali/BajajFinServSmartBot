@@ -40,15 +40,17 @@ def _build_control_token_regex(tags, wrappers):
     opening = f"[{''.join(opening_chars)}]"
     closing = f"[{''.join(closing_chars)}]"
     # Enhanced: Support fullwidth Unicode variants for brackets and angles.
-    if wrapper[0] == "[":
+    # Check the first wrapper's opening character to decide the optimized regex.
+    first_opening = wrappers[0][0]
+    if first_opening == "[":
         opening = r"[\[［]"
         closing = r"[\]］]"
-    elif wrapper[0] == "<":
+    elif first_opening == "<":
         opening = r"[<＜]"
         closing = r"[>＞]"
     else:
-        opening = re.escape(wrapper[0])
-        closing = re.escape(wrapper[1])
+        opening = re.escape(first_opening)
+        closing = re.escape(wrappers[0][1])
 
     return re.compile(
         rf"{opening}{gap}*(?P<slash>/?){gap}*(?P<tag>{'|'.join(tag_patterns)}){gap}*{closing}",
@@ -193,12 +195,10 @@ def _clean_tag(match):
 
     # Identify the bracket type for correct neutralization formatting.
     # Checks both standard and Fullwidth Unicode variants.
-    if "[" in raw_match or "\uff3b" in raw_match:
-    # Optimized: Use RE_GAP for single-pass removal of whitespace and invisible characters (~42% faster).
     clean_tag = RE_GAP.sub("", tag).upper()
 
     # Enhanced: Handle fullwidth brackets and angles during replacement.
-    if "[" in matched_str or "［" in matched_str:
+    if "[" in raw_match or "［" in raw_match or "\uff3b" in raw_match:
         return f"[ {slash}{clean_tag} ]"
     return f"< {slash}{clean_tag} >"
 
@@ -370,15 +370,11 @@ def _escape_control_tokens(text):
     # Included Fullwidth bracket and angle variants in fast-path check.
     if (
         "[" not in text
-        and "<" not in text
-        and "\uff3b" not in text
-        and "\uff1c" not in text
-    # Enhanced: Includes fullwidth Unicode variants (［, ＜) in fast-path checks.
-    if (
-        "[" not in text
         and "［" not in text
         and "<" not in text
         and "＜" not in text
+        and "\uff3b" not in text
+        and "\uff1c" not in text
     ):
         return text
 
@@ -391,12 +387,9 @@ def _escape_control_tokens(text):
 
     # Optimized: Use pre-defined _clean_tag and granular character checks to bypass sub() calls.
     # Included Fullwidth bracket and angle variants in character checks.
-    if "[" in text or "\uff3b" in text:
+    if "[" in text or "［" in text or "\uff3b" in text:
         text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
-    if "<" in text or "\uff1c" in text:
-    if "[" in text or "［" in text:
-        text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
-    if "<" in text or "＜" in text:
+    if "<" in text or "＜" in text or "\uff1c" in text:
         text = RE_CONTROL_ANGLE.sub(_clean_tag, text)
 
     return text

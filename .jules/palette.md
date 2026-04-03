@@ -62,3 +62,7 @@
 ## 2026-04-02 - [Visual Checklists for Feature Gating]
 **Learning:** For features that require specific files (like analytics), a generic info message is often overlooked. Using a visual checklist with Material Symbols (':material/check_circle:' vs ':material/pending:') and color coding (green vs grey) provides immediate, scannable feedback on what's missing, reducing user frustration and support queries.
 **Action:** Always use side-by-side visual checklists to communicate feature requirements or multi-step setup progress.
+
+## 2026-04-10 - [Searchable History & Dynamic Pluralization]
+**Learning:** For chat-based tools with persistent history, adding a search filter (with programmatic "Clear" support via `st.session_state`) significantly reduces cognitive load by allowing users to bypass long scrolls. Furthermore, implementing dynamic pluralization (e.g., "1 interaction" vs "2 interactions") in UI labels provides a subtle but critical layer of visual polish and grammatical correctness that increases overall professional feel.
+**Action:** Always include a search filter for growing message lists and ensure all count-based labels use conditional logic for proper pluralization.
