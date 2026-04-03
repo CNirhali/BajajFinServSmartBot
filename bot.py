@@ -37,18 +37,11 @@ def _build_control_token_regex(tags, wrappers):
     opening_chars = [re.escape(w[0]) for w in wrappers]
     closing_chars = [re.escape(w[1]) for w in wrappers]
 
+    # Match any of the specified opening or closing characters for the wrappers.
+    # Note: Fullwidth Unicode variants (［, ］, ＜, ＞) are handled by including them
+    # in the 'wrappers' list when calling this function (see RE_CONTROL_BRACKET/ANGLE).
     opening = f"[{''.join(opening_chars)}]"
     closing = f"[{''.join(closing_chars)}]"
-    # Enhanced: Support fullwidth Unicode variants for brackets and angles.
-    if wrapper[0] == "[":
-        opening = r"[\[［]"
-        closing = r"[\]］]"
-    elif wrapper[0] == "<":
-        opening = r"[<＜]"
-        closing = r"[>＞]"
-    else:
-        opening = re.escape(wrapper[0])
-        closing = re.escape(wrapper[1])
 
     return re.compile(
         rf"{opening}{gap}*(?P<slash>/?){gap}*(?P<tag>{'|'.join(tag_patterns)}){gap}*{closing}",
@@ -61,9 +54,9 @@ def _build_control_token_regex(tags, wrappers):
 # Support for Fullwidth Unicode brackets (U+FF3B, U+FF3D) and angles (U+FF1C, U+FF1E).
 RE_CONTROL_BRACKET = _build_control_token_regex(
     ["INST", "SYS", "USER", "ASST", "TOOL", "TOOL_CALLS", "TOOL_RESULTS", "AVAILABLE_TOOLS"],
-    [("[", "]"), ("\uff3b", "\uff3d")],
+    [("[", "]"), ("［", "］")],
 )
-RE_CONTROL_ANGLE = _build_control_token_regex(["s"], [("<", ">"), ("\uff1c", "\uff1e")])
+RE_CONTROL_ANGLE = _build_control_token_regex(["s"], [("<", ">"), ("＜", "＞")])
 
 # Pre-compiled regex for zero-width and format characters to improve performance in _escape_control_tokens
 # Expanded: Includes directional formatting and invisible formatters.
@@ -186,19 +179,13 @@ def _clean_tag(match):
     slash = match.group("slash") or ""
     tag = match.group("tag")
     # Remove any internal obfuscation from the tag name for the replacement
-    # Clean tag should also remove literal whitespace if it was somehow missed by the main regex but captured in the group
-    # Uses the pre-compiled RE_ZERO_WIDTH which includes an expanded set of invisible characters.
-    clean_tag = RE_ZERO_WIDTH.sub("", tag)
-    clean_tag = re.sub(r"\s", "", clean_tag).upper()
-
-    # Identify the bracket type for correct neutralization formatting.
-    # Checks both standard and Fullwidth Unicode variants.
-    if "[" in raw_match or "\uff3b" in raw_match:
-    # Optimized: Use RE_GAP for single-pass removal of whitespace and invisible characters (~42% faster).
+    # Optimized: Use RE_GAP for single-pass removal of whitespace and invisible characters.
     clean_tag = RE_GAP.sub("", tag).upper()
 
-    # Enhanced: Handle fullwidth brackets and angles during replacement.
-    if "[" in matched_str or "［" in matched_str:
+    # Identify the bracket type for correct neutralization formatting.
+    # Checks both standard and Fullwidth Unicode variants (［, ］, ＜, ＞).
+    # We check the original matched string to see which wrapper was used.
+    if any(c in matched_str for c in ("[", "［", "]", "］")):
         return f"[ {slash}{clean_tag} ]"
     return f"< {slash}{clean_tag} >"
 
@@ -344,9 +331,9 @@ def sanitize_markdown(text):
 
     # 2. Sanitize malicious URI protocols (e.g., javascript:, data:)
     # Optimized: Use a manual loop to scan for specific protocol/colon triggers.
-    # This is ~500x faster than calling RE_PROTOCOL_SAN.sub() on clean strings.
+    # This is significantly faster than calling RE_PROTOCOL_SAN.sub() on clean strings.
     has_trigger = False
-    for c in (":", "&", "%", "\uff1a", "\ufe55", "\u2236", "\u205a"):
+    for c in (":", "&", "%", "\uff1a", "\ufe55", "\u2236", "\u205a", "\ua789", "\u0589", "\u1804", "\u205d"):
         if c in text:
             has_trigger = True
             break
@@ -367,36 +354,32 @@ def _escape_control_tokens(text):
     Optimized: Added lru_cache to skip repeated processing for reused chunks.
     """
     # Fast-path: Skip expensive regex operations if no potential control tokens exist.
-    # Included Fullwidth bracket and angle variants in fast-path check.
-    if (
-        "[" not in text
-        and "<" not in text
-        and "\uff3b" not in text
-        and "\uff1c" not in text
-    # Enhanced: Includes fullwidth Unicode variants (［, ＜) in fast-path checks.
+    # Enhanced: Includes fullwidth Unicode variants (［, ］, ＜, ＞) in fast-path checks.
     if (
         "[" not in text
         and "［" not in text
+        and "]" not in text
+        and "］" not in text
         and "<" not in text
         and "＜" not in text
+        and ">" not in text
+        and "＞" not in text
     ):
         return text
 
     # Optimized: Use manual for loop instead of any() to scan for zero-width characters.
-    # This avoids generator overhead and is ~40% faster in this environment.
+    # This avoids generator overhead.
     for c in ZERO_WIDTH_CHARS:
         if c in text:
             text = RE_ZERO_WIDTH.sub("", text)
             break
 
     # Optimized: Use pre-defined _clean_tag and granular character checks to bypass sub() calls.
-    # Included Fullwidth bracket and angle variants in character checks.
-    if "[" in text or "\uff3b" in text:
+    # Included Fullwidth bracket and angle variants (［, ］, ＜, ＞) in character checks.
+    # This avoids entering the regex engine for common text.
+    if any(c in text for c in ("[", "［", "]", "］")):
         text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
-    if "<" in text or "\uff1c" in text:
-    if "[" in text or "［" in text:
-        text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
-    if "<" in text or "＜" in text:
+    if any(c in text for c in ("<", "＜", ">", "＞")):
         text = RE_CONTROL_ANGLE.sub(_clean_tag, text)
 
     return text
