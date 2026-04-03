@@ -126,3 +126,7 @@
 ## 2026-04-02 - Granular Fast-Paths and UI Pre-calculation
 **Learning:** Broad fast-path checks that combine multiple triggers (e.g., '!' and ':') can cause performance degradation by triggering heavy regex scans for unrelated patterns (e.g., a simple exclamation mark triggering a full protocol URI scan). Furthermore, performing regex-based string sanitization inside Streamlit's rendering loop creates (N)$ overhead that compounds as chat history grows.
 **Action:** Implement granular, trigger-specific fast-paths to isolate expensive regex operations. Pre-calculate all UI-specific string metadata (like sanitized filenames) at the time of data creation and store it in session state to ensure the rendering loop remains (1)$ per item regardless of string complexity.
+
+## 2024-05-31 - Regex Consolidation and Fast-Path Optimization
+**Learning:** Even with pre-compiled regexes, multiple sequential substitutions (like RE_MD_IMAGE.sub) are significantly slower than a single pass. Furthermore, broad fast-path checks that combine multiple triggers can be optimized by consolidating them into a single, clean 'if' block to reduce branching overhead in Streamlit's frequent reruns.
+**Action:** Always look for opportunities to merge sequential regex operations and consolidate fast-path triggers. Ensure that Fullwidth Unicode variants are included in fast-paths using their literal forms or escape sequences consistently to maintain both performance and readability.

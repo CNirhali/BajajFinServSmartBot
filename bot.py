@@ -34,21 +34,23 @@ def _build_control_token_regex(tags, wrappers):
         # Each character in the tag can be followed by optional gaps/spaces
         tag_patterns.append(f"{gap}*".join([re.escape(c) for c in tag]))
 
-    opening_chars = [re.escape(w[0]) for w in wrappers]
-    closing_chars = [re.escape(w[1]) for w in wrappers]
+    # Collect all opening/closing chars from the provided wrapper pairs
+    # and automatically include their Fullwidth Unicode variants for robustness.
+    all_open = []
+    all_close = []
+    for w_open, w_close in wrappers:
+        all_open.append(re.escape(w_open))
+        all_close.append(re.escape(w_close))
+        # Support common Fullwidth variants
+        if w_open == "[":
+            all_open.append("\uff3b")  # ［
+            all_close.append("\uff3d")  # ］
+        elif w_open == "<":
+            all_open.append("\uff1c")  # ＜
+            all_close.append("\uff1e")  # ＞
 
-    opening = f"[{''.join(opening_chars)}]"
-    closing = f"[{''.join(closing_chars)}]"
-    # Enhanced: Support fullwidth Unicode variants for brackets and angles.
-    if wrapper[0] == "[":
-        opening = r"[\[［]"
-        closing = r"[\]］]"
-    elif wrapper[0] == "<":
-        opening = r"[<＜]"
-        closing = r"[>＞]"
-    else:
-        opening = re.escape(wrapper[0])
-        closing = re.escape(wrapper[1])
+    opening = f"[{''.join(all_open)}]"
+    closing = f"[{''.join(all_close)}]"
 
     return re.compile(
         rf"{opening}{gap}*(?P<slash>/?){gap}*(?P<tag>{'|'.join(tag_patterns)}){gap}*{closing}",
@@ -181,24 +183,17 @@ def _clean_tag(match):
     Helper function to clean up and format LLM control tags during substitution.
     Moved to module level to avoid re-definition overhead in _escape_control_tokens.
     """
-    raw_match = match.group(0)
     matched_str = match.group(0)
     slash = match.group("slash") or ""
     tag = match.group("tag")
-    # Remove any internal obfuscation from the tag name for the replacement
-    # Clean tag should also remove literal whitespace if it was somehow missed by the main regex but captured in the group
-    # Uses the pre-compiled RE_ZERO_WIDTH which includes an expanded set of invisible characters.
-    clean_tag = RE_ZERO_WIDTH.sub("", tag)
-    clean_tag = re.sub(r"\s", "", clean_tag).upper()
-
-    # Identify the bracket type for correct neutralization formatting.
-    # Checks both standard and Fullwidth Unicode variants.
-    if "[" in raw_match or "\uff3b" in raw_match:
+    # Remove any internal obfuscation from the tag name for the replacement.
     # Optimized: Use RE_GAP for single-pass removal of whitespace and invisible characters (~42% faster).
     clean_tag = RE_GAP.sub("", tag).upper()
 
-    # Enhanced: Handle fullwidth brackets and angles during replacement.
-    if "[" in matched_str or "［" in matched_str:
+    # Enhanced: Handle Fullwidth brackets and angles during replacement.
+    # Identify the bracket type for correct neutralization formatting.
+    # \uff3b is ［
+    if "[" in matched_str or "\uff3b" in matched_str:
         return f"[ {slash}{clean_tag} ]"
     return f"< {slash}{clean_tag} >"
 
@@ -333,13 +328,12 @@ def sanitize_markdown(text):
     ):
         return text
 
+    # 1. Sanitize Markdown image tags (e.g., ![alt](url))
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
+    # Optimized: Use a fast-path check for '!' or '！' to bypass the regex entirely.
     # We use RE_MD_IMAGE to handle multiple exclamation marks (e.g., !![) that could bypass a simple replace.
-    text = RE_MD_IMAGE.sub("[", text)
-    # 1. Sanitize Markdown image tags (e.g., ![alt](url))
-    # Optimized: Use a fast-path check for '!' to bypass the regex entirely.
-    if "!" in text:
+    if "!" in text or "！" in text:
         text = RE_MD_IMAGE.sub("[", text)
 
     # 2. Sanitize malicious URI protocols (e.g., javascript:, data:)
@@ -367,18 +361,12 @@ def _escape_control_tokens(text):
     Optimized: Added lru_cache to skip repeated processing for reused chunks.
     """
     # Fast-path: Skip expensive regex operations if no potential control tokens exist.
-    # Included Fullwidth bracket and angle variants in fast-path check.
+    # Enhanced: Includes Fullwidth Unicode variants (［: \uff3b, ＜: \uff1c) in fast-path checks.
     if (
         "[" not in text
-        and "<" not in text
         and "\uff3b" not in text
-        and "\uff1c" not in text
-    # Enhanced: Includes fullwidth Unicode variants (［, ＜) in fast-path checks.
-    if (
-        "[" not in text
-        and "［" not in text
         and "<" not in text
-        and "＜" not in text
+        and "\uff1c" not in text
     ):
         return text
 
@@ -390,13 +378,10 @@ def _escape_control_tokens(text):
             break
 
     # Optimized: Use pre-defined _clean_tag and granular character checks to bypass sub() calls.
-    # Included Fullwidth bracket and angle variants in character checks.
+    # Included Fullwidth bracket and angle variants (\uff3b, \uff1c) in character checks.
     if "[" in text or "\uff3b" in text:
         text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
     if "<" in text or "\uff1c" in text:
-    if "[" in text or "［" in text:
-        text = RE_CONTROL_BRACKET.sub(_clean_tag, text)
-    if "<" in text or "＜" in text:
         text = RE_CONTROL_ANGLE.sub(_clean_tag, text)
 
     return text
