@@ -62,3 +62,7 @@
 ## 2026-04-02 - [Visual Checklists for Feature Gating]
 **Learning:** For features that require specific files (like analytics), a generic info message is often overlooked. Using a visual checklist with Material Symbols (':material/check_circle:' vs ':material/pending:') and color coding (green vs grey) provides immediate, scannable feedback on what's missing, reducing user frustration and support queries.
 **Action:** Always use side-by-side visual checklists to communicate feature requirements or multi-step setup progress.
+
+## 2026-04-05 - [Search Feedback & Control]
+**Learning:** For Knowledge Base popovers, adding a "Clear" button and a dynamic match count (e.g., ":material/search_check: Found N matching files") significantly improves user confidence when filtering large document sets. In Streamlit, this is best implemented with `st.columns` and a simple `st.rerun()` trigger for the reset.
+**Action:** Always provide immediate visual confirmation of filter results and an easy "Clear" action in searchable metadata lists.
