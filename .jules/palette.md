@@ -62,3 +62,10 @@
 ## 2026-04-02 - [Visual Checklists for Feature Gating]
 **Learning:** For features that require specific files (like analytics), a generic info message is often overlooked. Using a visual checklist with Material Symbols (':material/check_circle:' vs ':material/pending:') and color coding (green vs grey) provides immediate, scannable feedback on what's missing, reducing user frustration and support queries.
 **Action:** Always use side-by-side visual checklists to communicate feature requirements or multi-step setup progress.
+
+## 2026-04-05 - [Search Feedback & Control]
+**Learning:** For Knowledge Base popovers, adding a "Clear" button and a dynamic match count (e.g., ":material/search_check: Found N matching files") significantly improves user confidence when filtering large document sets. In Streamlit, this is best implemented with `st.columns` and a simple `st.rerun()` trigger for the reset.
+**Action:** Always provide immediate visual confirmation of filter results and an easy "Clear" action in searchable metadata lists.
+## 2026-04-05 - [AI Response Latency & Chart Guidance]
+**Learning:** Tracking and displaying AI response latency (generation time) in chat history and session exports improves transparency and user trust in LLM-powered applications. Additionally, supplementing complex charts with specific guidance in captions helps users correctly interpret data visualisations with differing scales.
+**Action:** Always provide duration feedback for LLM interactions and use contextual tips to guide users through non-obvious data comparisons.
