@@ -101,9 +101,9 @@ def _build_protocol_regex():
     # Expanded gap pattern to include directional formatting and invisible formatters.
     gap_variants = [
         r"[\s\x00-\x1F\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]",
-        r"&#0*(?:0|9|10|13|32);?",
-        r"&#[xX]0*(?:0|9|[aA]|[dD]|20);?",
-        r"%0*(?:0|9|[aA]|[dD])",
+        r"&#0*(?:[0-9]|[12][0-9]|3[0-2]);?",
+        r"&#[xX]0*(?:[0-9a-fA-F]|1[0-9a-fA-F]|20);?",
+        r"%0*(?:[0-9a-fA-F]|1[0-9a-fA-F])",
         r"%20",
         r"&Tab;?",
         r"&NewLine;?",
