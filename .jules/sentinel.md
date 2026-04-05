@@ -136,3 +136,8 @@
 **Vulnerability:** XSS and Prompt Injection bypasses via Unicode Fullwidth homoglyphs (e.g., `！`, `［`, `］`, `＜`, `＞`) and visual/functional Unicode colon variants (e.g., `꞉` \ua789, `᠄` \u1804).
 **Learning:** Security filters that strictly target ASCII characters are susceptible to bypasses using Unicode characters that browsers or LLM tokenizers treat as visually or functionally equivalent to structural markers (like brackets or colons).
 **Prevention:** Extend security regexes and fast-path string checks to include Fullwidth and other visual homoglyphs for all structural characters used in markdown and LLM templates. Implement normalization in replacement logic to ensure these variants are converted to safe representations.
+
+## 2025-05-15 - [Security Regression via Function Shadowing]
+**Vulnerability:** A robust LLM control token sanitization function (`_escape_control_tokens`) was completely neutralized by a weak stub implementation appended to the end of `bot.py`.
+**Learning:** In Python, if a function is defined multiple times in the same module, the last definition silently overrides all previous ones. This can be used (intentionally or accidentally) to bypass critical security filters while the "secure" code remains visible earlier in the file.
+**Prevention:** Regularly audit the codebase for duplicate function or variable definitions. Use linting tools that detect shadowed names. Ensure that security-critical functions are protected and that the final exported version is the intended one.

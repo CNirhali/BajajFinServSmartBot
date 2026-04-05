@@ -1,3 +1,17 @@
+import re
+import functools
+import requests
+import os
+
+# Constants
+# Security Enhancement: Use environment variables for configuration to avoid hardcoded values.
+EMBED_MODEL = os.getenv("EMBED_MODEL", "all-MiniLM-L6-v2")
+CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./chroma_db")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "smartbot_docs")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral")
+
+
 def _clean_tag(tag):
     # Assume some logic that processes the tag
     return tag.strip().lower()
@@ -491,8 +505,3 @@ if __name__ == "__main__":
             [f"Source: {c['source']}\n{c['text']}" for c in context]
         )
         print(f"\nAnswer: {answer}\n\n---\nContext used:\n{context_str}\n")
-def _escape_control_tokens(input_string):
-    control_tokens = ["\n", "\t", "\r"]
-    for token in control_tokens:
-        input_string = input_string.replace(token, "")
-    return input_string
