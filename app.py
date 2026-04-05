@@ -625,7 +625,7 @@ if bfs_path and sensex_path:
                 )
                 st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
                 st.caption(
-                    "Note: BFS and Sensex are on different scales, making BFS appear flat in this view."
+                    "Note: BFS and Sensex are on different scales. Tip: Use the 'Relative Performance' tab for a fair growth comparison."
                 )
                 # Optimized: Use cached CSV encoding to avoid redundant O(N) conversion.
                 st.download_button(
@@ -767,7 +767,10 @@ if submit_button:
             st.session_state["last_query_time"] = current_time
             with st.spinner("Searching transcripts and generating response..."):
                 try:
+                    start_time = time.time()
                     answer, context = bot.answer_query(query)
+                    duration = round(time.time() - start_time, 1)
+
                     # Optimized: Pre-join context for download button to avoid reconstruction on every rerun.
                     context_full_text = "\n\n".join(
                         [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -814,6 +817,7 @@ if submit_button:
                         "expander_label": expander_label,
                         "ui_context": ui_context,
                         "timestamp": time.strftime("%H:%M"),
+                        "duration": duration,
                     }
                     st.session_state["chat_history"].append(new_chat)
 
@@ -825,7 +829,7 @@ if submit_button:
                     export_text += f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
                     export_text += f"Timestamp: {new_chat['timestamp']}\n"
                     export_text += f"User: {new_chat['query']}\n"
-                    export_text += f"Assistant: {new_chat['answer']}\n\n"
+                    export_text += f"Assistant (took {new_chat['duration']}s): {new_chat['answer']}\n\n"
                     st.session_state["full_export_text"] = export_text
                     st.toast("Response generated!", icon=":material/forum:")
                 except Exception as e:
@@ -894,7 +898,10 @@ if not st.session_state["chat_history"]:
                 st.session_state["last_query_time"] = current_time
                 with st.spinner(f"Generating response for: {suggestion}..."):
                     try:
+                        start_time = time.time()
                         answer, context = bot.answer_query(suggestion)
+                        duration = round(time.time() - start_time, 1)
+
                         # Optimized: Pre-join context for download button.
                         context_full_text = "\n\n".join(
                             [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -937,6 +944,7 @@ if not st.session_state["chat_history"]:
                             "expander_label": expander_label,
                             "ui_context": ui_context,
                             "timestamp": time.strftime("%H:%M"),
+                            "duration": duration,
                         }
                         st.session_state["chat_history"].append(new_chat)
 
@@ -948,7 +956,7 @@ if not st.session_state["chat_history"]:
                         export_text += f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
                         export_text += f"Timestamp: {new_chat['timestamp']}\n"
                         export_text += f"User: {new_chat['query']}\n"
-                        export_text += f"Assistant: {new_chat['answer']}\n\n"
+                        export_text += f"Assistant (took {new_chat['duration']}s): {new_chat['answer']}\n\n"
                         st.session_state["full_export_text"] = export_text
                         st.toast("Response generated!", icon=":material/forum:")
                         st.rerun()
@@ -962,7 +970,8 @@ if not st.session_state["chat_history"]:
 else:
     for i, chat in enumerate(reversed(st.session_state["chat_history"])):
         ts = chat.get("timestamp", "")
-        st.markdown(f"### :material/forum: Interaction {history_count - i} :grey[({ts})]")
+        duration = chat.get("duration", "N/A")
+        st.markdown(f"### :material/forum: Interaction {history_count - i} :grey[({ts} • {duration}s)]")
         with st.chat_message("user", avatar=":material/person:"):
             # Optimized: User query is already sanitized before storage.
             st.markdown(chat["query"])
