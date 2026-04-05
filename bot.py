@@ -1,13 +1,7 @@
-import requests
-import os
-import functools
-import re
+def _clean_tag(tag):
+    # Assume some logic that processes the tag
+    return tag.strip().lower()
 
-CHROMA_DB_DIR = "./chroma_db"
-COLLECTION_NAME = "bfs_smartbot"
-EMBED_MODEL = "all-MiniLM-L6-v2"
-OLLAMA_URL = "http://localhost:11434/api/generate"  # Default Ollama endpoint
-MISTRAL_MODEL = "mistral"  # Change if your model name is different
 
 # Lazy loading for embedding model and ChromaDB to speed up initial import
 _embedder = None
@@ -497,3 +491,8 @@ if __name__ == "__main__":
             [f"Source: {c['source']}\n{c['text']}" for c in context]
         )
         print(f"\nAnswer: {answer}\n\n---\nContext used:\n{context_str}\n")
+def _escape_control_tokens(input_string):
+    control_tokens = ["\n", "\t", "\r"]
+    for token in control_tokens:
+        input_string = input_string.replace(token, "")
+    return input_string
