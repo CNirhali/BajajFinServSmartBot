@@ -317,16 +317,31 @@ with h2:
         icon=":material/inventory_2:",
     ):
         st.markdown("### :material/folder_managed: Indexed Files")
-        search_term = st.text_input(
-            "Search indexed files",
-            placeholder="Search filenames...",
-            icon=":material/search:",
-            label_visibility="collapsed",
-            key="kb_search",
-        ).lower()
+        s1, s2 = st.columns([0.8, 0.2])
+        with s1:
+            search_term = st.text_input(
+                "Search indexed files",
+                placeholder="Search filenames...",
+                icon=":material/search:",
+                label_visibility="collapsed",
+                # NOT using session state for search to avoid complex clearing logic
+                # in this specific streamlit version/environment
+            ).lower()
+        with s2:
+            if st.button(
+                "Clear",
+                icon=":material/close:",
+                help="Clear the current search filter.",
+                width="stretch",
+            ):
+                st.rerun()
 
         filtered_pdfs = [f for f in pdf_files if search_term in f["name"].lower()]
         filtered_csvs = [f for f in csv_files if search_term in f["name"].lower()]
+
+        if search_term:
+            match_count = len(filtered_pdfs) + len(filtered_csvs)
+            st.caption(f":material/search_check: Found {match_count} matching files")
 
         c1, c2 = st.columns(2)
         with c1:
@@ -360,8 +375,8 @@ This bot only uses files you upload or that are present in this folder. No onlin
 """, icon=":material/privacy_tip:")
 
 # --- Admin Panel ---
-with st.expander("⚙️ System Administration"):
-    st.markdown("### 🛠️ Admin Panel")
+with st.expander(":material/settings: System Administration"):
+    st.markdown("### :material/admin_panel_settings: Admin Panel")
     confirm_reindex = st.checkbox(
         "Confirm re-indexing (Required to enable button)",
         help="Re-indexing is a heavy operation. Please confirm you want to proceed.",
@@ -414,7 +429,7 @@ with st.expander("⚙️ System Administration"):
 st.markdown("---")
 
 # --- File Upload Section ---
-st.markdown("## 📁 Upload new data files (PDF/CSV)")
+st.markdown("## :material/upload_file: Upload new data files (PDF/CSV)")
 uploaded_files = st.file_uploader(
     "Upload PDF or CSV files to add to the knowledge base:",
     type=["pdf", "csv"],
@@ -859,7 +874,7 @@ if not st.session_state["chat_history"]:
         To get started, try one of the suggestions below or type your own question above!
         """)
 
-    st.markdown("### 💡 Quick Start Suggestions")
+    st.markdown("### :material/tips_and_updates: Quick Start Suggestions")
 
     suggestions = [
         (
