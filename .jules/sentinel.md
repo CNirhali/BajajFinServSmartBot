@@ -136,8 +136,3 @@
 **Vulnerability:** XSS and Prompt Injection bypasses via Unicode Fullwidth homoglyphs (e.g., `！`, `［`, `］`, `＜`, `＞`) and visual/functional Unicode colon variants (e.g., `꞉` \ua789, `᠄` \u1804).
 **Learning:** Security filters that strictly target ASCII characters are susceptible to bypasses using Unicode characters that browsers or LLM tokenizers treat as visually or functionally equivalent to structural markers (like brackets or colons).
 **Prevention:** Extend security regexes and fast-path string checks to include Fullwidth and other visual homoglyphs for all structural characters used in markdown and LLM templates. Implement normalization in replacement logic to ensure these variants are converted to safe representations.
-
-## 2026-04-10 - [XSS Bypass via Encoded ASCII Control Characters]
-**Vulnerability:** XSS protocol filters (e.g., `javascript:`) can be bypassed using ASCII control characters (C0 range, 0-31) that are ignored by browsers but evade filters targeting only common whitespace. These can be represented as decimal HTML entities (e.g., `&#1;`), hex HTML entities (e.g., `&#x1;`), or URL-encoded (e.g., `%01`).
-**Learning:** Browser URI parsers are highly permissive and often strip or ignore all non-printable ASCII control characters. If a security filter strictly checks for literal characters or a limited set of entities (like Tab or Newline), it can be bypassed by using less common control characters in any of their encoded forms.
-**Prevention:** Extend "gap" patterns in protocol sanitization regexes to comprehensively include the entire C0 control character range (0-31) in all supported encoding formats: literal, decimal entities, hex entities (with optional zero-padding and semicolons), and URL encoding.
