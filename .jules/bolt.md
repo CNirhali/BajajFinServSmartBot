@@ -130,3 +130,7 @@
 ## 2026-04-04 - Explicit 'in' Checks vs any() Generator
 **Learning:** In Python, `any(c in text for c in list_of_chars)` incurs significant overhead from the creation of a generator object and the iteration protocol. For small character sets (e.g., 4 variants of brackets), explicit `or` conditions (e.g., `c1 in text or c2 in text`) are substantially faster (~3.6x for clean strings and ~7.8x for dirty strings).
 **Action:** Prefer explicit `in` checks over `any()` with a generator expression in performance-critical fast-paths and tight loops.
+
+## 2025-05-14 - Redundant Regex and Fast-Path Optimization
+**Learning:** Redundant regex substitutions (calling `sub` twice or calling it without a guard when it's likely to fail) add unnecessary overhead, especially on long strings. Additionally, for small sets of trigger characters, an explicit `or` chain of `in` checks is faster than a `for` loop due to reduced iteration and binding overhead in Python.
+**Action:** Always guard expensive regex operations with fast-path checks. Prefer explicit `or` chains over loops for character presence detection when the set of characters is small and static.
