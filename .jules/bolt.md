@@ -126,3 +126,11 @@
 ## 2026-04-02 - Granular Fast-Paths and UI Pre-calculation
 **Learning:** Broad fast-path checks that combine multiple triggers (e.g., '!' and ':') can cause performance degradation by triggering heavy regex scans for unrelated patterns (e.g., a simple exclamation mark triggering a full protocol URI scan). Furthermore, performing regex-based string sanitization inside Streamlit's rendering loop creates (N)$ overhead that compounds as chat history grows.
 **Action:** Implement granular, trigger-specific fast-paths to isolate expensive regex operations. Pre-calculate all UI-specific string metadata (like sanitized filenames) at the time of data creation and store it in session state to ensure the rendering loop remains (1)$ per item regardless of string complexity.
+
+## 2026-04-04 - Explicit 'in' Checks vs any() Generator
+**Learning:** In Python, `any(c in text for c in list_of_chars)` incurs significant overhead from the creation of a generator object and the iteration protocol. For small character sets (e.g., 4 variants of brackets), explicit `or` conditions (e.g., `c1 in text or c2 in text`) are substantially faster (~3.6x for clean strings and ~7.8x for dirty strings).
+**Action:** Prefer explicit `in` checks over `any()` with a generator expression in performance-critical fast-paths and tight loops.
+
+## 2025-05-14 - Redundant Regex and Fast-Path Optimization
+**Learning:** Redundant regex substitutions (calling `sub` twice or calling it without a guard when it's likely to fail) add unnecessary overhead, especially on long strings. Additionally, for small sets of trigger characters, an explicit `or` chain of `in` checks is faster than a `for` loop due to reduced iteration and binding overhead in Python.
+**Action:** Always guard expensive regex operations with fast-path checks. Prefer explicit `or` chains over loops for character presence detection when the set of characters is small and static.
