@@ -195,6 +195,9 @@ with st.sidebar:
     chat_history = st.session_state.get("chat_history", [])
     history_count = len(chat_history)
     int_text = "interaction" if history_count == 1 else "interactions"
+    if "history_search_input" not in st.session_state:
+        st.session_state["history_search_input"] = ""
+
     with st.popover(
         f"New Chat ({history_count})",
         help="Clear the current conversation and start a new session.",
@@ -238,7 +241,7 @@ with st.sidebar:
             "full_export_text", "=== Bajaj Finserv SmartBot Session Export ===\n\n"
         )
         st.download_button(
-            label=f"Download Full Conversation ({history_count} interactions)",
+            label=f"Download Full Conversation ({history_count} {int_text})",
             data=st.session_state["full_export_text"],
             file_name=f"smartbot_session_{time.strftime('%Y%m%d_%H%M%S')}.txt",
             mime="text/plain",
@@ -840,9 +843,23 @@ if submit_button:
 
 # --- Chat History ---
 history_count = len(st.session_state.get("chat_history", []))
-st.markdown(f"## :material/folder_managed: Chat History ({history_count})")
 
-if not st.session_state["chat_history"]:
+c1, c2 = st.columns([0.6, 0.4])
+with c1:
+    st.markdown(f"## :material/folder_managed: Chat History ({history_count})")
+
+if st.session_state.get("chat_history"):
+    with c2:
+        st.text_input(
+            "Search chat history",
+            placeholder="Search questions or answers...",
+            icon=":material/search:",
+            label_visibility="collapsed",
+            key="history_search_input",
+        )
+history_search = st.session_state.get("history_search_input", "").lower()
+
+if not st.session_state.get("chat_history"):
     with st.chat_message("assistant", avatar=":material/smart_toy:"):
         st.markdown("""
         👋 **Welcome! I'm your Bajaj Finserv SmartBot.**
@@ -960,9 +977,35 @@ if not st.session_state["chat_history"]:
                             "⚠️ Assistant is temporarily unavailable. Please ensure the local LLM server (Ollama) is running."
                         )
 else:
-    for i, chat in enumerate(reversed(st.session_state["chat_history"])):
+    # Filter chat history if search term is provided
+    if history_search:
+        # Keep track of original index to maintain correct "Interaction N" numbering
+        filtered_history = [
+            (idx, chat)
+            for idx, chat in enumerate(st.session_state["chat_history"])
+            if history_search in chat["query"].lower()
+            or history_search in chat["answer"].lower()
+        ]
+        display_history = reversed(filtered_history)
+        st.caption(
+            f":material/filter_list: Showing {len(filtered_history)} of {history_count} interactions matching ':blue[{history_search}]'"
+        )
+        if not filtered_history:
+            st.info(
+                "No matching interactions found. Try a different search term.",
+                icon=":material/search_off:",
+            )
+            if st.button("Clear Search", icon=":material/close:"):
+                st.session_state["history_search_input"] = ""
+                st.rerun()
+    else:
+        display_history = reversed(list(enumerate(st.session_state["chat_history"])))
+
+    for original_idx, chat in display_history:
         ts = chat.get("timestamp", "")
-        st.markdown(f"### :material/forum: Interaction {history_count - i} :grey[({ts})]")
+        st.markdown(
+            f"### :material/forum: Interaction {original_idx + 1} :grey[({ts})]"
+        )
         with st.chat_message("user", avatar=":material/person:"):
             # Optimized: User query is already sanitized before storage.
             st.markdown(chat["query"])
@@ -1027,9 +1070,9 @@ else:
                 st.download_button(
                     label="Download Answer & Context",
                     data=download_text,
-                    file_name=f"bfs_smartbot_answer_{history_count - i}_{sanitized_query}.txt",
+                    file_name=f"bfs_smartbot_answer_{original_idx + 1}_{sanitized_query}.txt",
                     mime="text/plain",
-                    key=f"download_{history_count - i}",
+                    key=f"download_{original_idx + 1}",
                     help="Download this specific answer and its supporting context as a text file for your records.",
                     width="stretch",
                     icon=":material/download:",
