@@ -317,31 +317,16 @@ with h2:
         icon=":material/inventory_2:",
     ):
         st.markdown("### :material/folder_managed: Indexed Files")
-        s1, s2 = st.columns([0.8, 0.2])
-        with s1:
-            search_term = st.text_input(
-                "Search indexed files",
-                placeholder="Search filenames...",
-                icon=":material/search:",
-                label_visibility="collapsed",
-                # NOT using session state for search to avoid complex clearing logic
-                # in this specific streamlit version/environment
-            ).lower()
-        with s2:
-            if st.button(
-                "Clear",
-                icon=":material/close:",
-                help="Clear the current search filter.",
-                width="stretch",
-            ):
-                st.rerun()
+        search_term = st.text_input(
+            "Search indexed files",
+            placeholder="Search filenames...",
+            icon=":material/search:",
+            label_visibility="collapsed",
+            key="kb_search",
+        ).lower()
 
         filtered_pdfs = [f for f in pdf_files if search_term in f["name"].lower()]
         filtered_csvs = [f for f in csv_files if search_term in f["name"].lower()]
-
-        if search_term:
-            match_count = len(filtered_pdfs) + len(filtered_csvs)
-            st.caption(f":material/search_check: Found {match_count} matching files")
 
         c1, c2 = st.columns(2)
         with c1:
@@ -375,8 +360,8 @@ This bot only uses files you upload or that are present in this folder. No onlin
 """, icon=":material/privacy_tip:")
 
 # --- Admin Panel ---
-with st.expander(":material/settings: System Administration"):
-    st.markdown("### :material/admin_panel_settings: Admin Panel")
+with st.expander("⚙️ System Administration"):
+    st.markdown("### 🛠️ Admin Panel")
     confirm_reindex = st.checkbox(
         "Confirm re-indexing (Required to enable button)",
         help="Re-indexing is a heavy operation. Please confirm you want to proceed.",
@@ -429,7 +414,7 @@ with st.expander(":material/settings: System Administration"):
 st.markdown("---")
 
 # --- File Upload Section ---
-st.markdown("## :material/upload_file: Upload new data files (PDF/CSV)")
+st.markdown("## 📁 Upload new data files (PDF/CSV)")
 uploaded_files = st.file_uploader(
     "Upload PDF or CSV files to add to the knowledge base:",
     type=["pdf", "csv"],
@@ -640,7 +625,7 @@ if bfs_path and sensex_path:
                 )
                 st.line_chart(merged, x="Date", y=["BFS Close", "Sensex Close"])
                 st.caption(
-                    "Note: BFS and Sensex are on different scales. Tip: Use the 'Relative Performance' tab for a fair growth comparison."
+                    "Note: BFS and Sensex are on different scales, making BFS appear flat in this view."
                 )
                 # Optimized: Use cached CSV encoding to avoid redundant O(N) conversion.
                 st.download_button(
@@ -782,10 +767,7 @@ if submit_button:
             st.session_state["last_query_time"] = current_time
             with st.spinner("Searching transcripts and generating response..."):
                 try:
-                    start_time = time.time()
                     answer, context = bot.answer_query(query)
-                    duration = round(time.time() - start_time, 1)
-
                     # Optimized: Pre-join context for download button to avoid reconstruction on every rerun.
                     context_full_text = "\n\n".join(
                         [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -832,7 +814,6 @@ if submit_button:
                         "expander_label": expander_label,
                         "ui_context": ui_context,
                         "timestamp": time.strftime("%H:%M"),
-                        "duration": duration,
                     }
                     st.session_state["chat_history"].append(new_chat)
 
@@ -844,7 +825,7 @@ if submit_button:
                     export_text += f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
                     export_text += f"Timestamp: {new_chat['timestamp']}\n"
                     export_text += f"User: {new_chat['query']}\n"
-                    export_text += f"Assistant (took {new_chat['duration']}s): {new_chat['answer']}\n\n"
+                    export_text += f"Assistant: {new_chat['answer']}\n\n"
                     st.session_state["full_export_text"] = export_text
                     st.toast("Response generated!", icon=":material/forum:")
                 except Exception as e:
@@ -874,7 +855,7 @@ if not st.session_state["chat_history"]:
         To get started, try one of the suggestions below or type your own question above!
         """)
 
-    st.markdown("### :material/tips_and_updates: Quick Start Suggestions")
+    st.markdown("### 💡 Quick Start Suggestions")
 
     suggestions = [
         (
@@ -913,10 +894,7 @@ if not st.session_state["chat_history"]:
                 st.session_state["last_query_time"] = current_time
                 with st.spinner(f"Generating response for: {suggestion}..."):
                     try:
-                        start_time = time.time()
                         answer, context = bot.answer_query(suggestion)
-                        duration = round(time.time() - start_time, 1)
-
                         # Optimized: Pre-join context for download button.
                         context_full_text = "\n\n".join(
                             [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -959,7 +937,6 @@ if not st.session_state["chat_history"]:
                             "expander_label": expander_label,
                             "ui_context": ui_context,
                             "timestamp": time.strftime("%H:%M"),
-                            "duration": duration,
                         }
                         st.session_state["chat_history"].append(new_chat)
 
@@ -971,7 +948,7 @@ if not st.session_state["chat_history"]:
                         export_text += f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
                         export_text += f"Timestamp: {new_chat['timestamp']}\n"
                         export_text += f"User: {new_chat['query']}\n"
-                        export_text += f"Assistant (took {new_chat['duration']}s): {new_chat['answer']}\n\n"
+                        export_text += f"Assistant: {new_chat['answer']}\n\n"
                         st.session_state["full_export_text"] = export_text
                         st.toast("Response generated!", icon=":material/forum:")
                         st.rerun()
@@ -985,8 +962,7 @@ if not st.session_state["chat_history"]:
 else:
     for i, chat in enumerate(reversed(st.session_state["chat_history"])):
         ts = chat.get("timestamp", "")
-        duration = chat.get("duration", "N/A")
-        st.markdown(f"### :material/forum: Interaction {history_count - i} :grey[({ts} • {duration}s)]")
+        st.markdown(f"### :material/forum: Interaction {history_count - i} :grey[({ts})]")
         with st.chat_message("user", avatar=":material/person:"):
             # Optimized: User query is already sanitized before storage.
             st.markdown(chat["query"])
