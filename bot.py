@@ -325,25 +325,24 @@ def sanitize_markdown(text):
     ):
         return text
 
+    # 1. Sanitize Markdown image tags (e.g., ![alt](url))
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
     # We use RE_MD_IMAGE to handle multiple exclamation marks (e.g., !![) that could bypass a simple replace.
-    text = RE_MD_IMAGE.sub("[", text)
-    # 1. Sanitize Markdown image tags (e.g., ![alt](url))
-    # Optimized: Use a fast-path check for '!' to bypass the regex entirely.
-    if "!" in text:
+    # Optimized: Use a fast-path check for '!' or '！' to bypass the regex entirely.
+    if "!" in text or "！" in text:
         text = RE_MD_IMAGE.sub("[", text)
 
     # 2. Sanitize malicious URI protocols (e.g., javascript:, data:)
-    # Optimized: Use a manual loop to scan for specific protocol/colon triggers.
-    # This is significantly faster than calling RE_PROTOCOL_SAN.sub() on clean strings.
-    has_trigger = False
-    for c in (":", "&", "%", "\uff1a", "\ufe55", "\u2236", "\u205a", "\ua789", "\u0589", "\u1804", "\u205d"):
-        if c in text:
-            has_trigger = True
-            break
-
-    if has_trigger:
+    # Optimized: Use an explicit 'or' chain to scan for specific protocol/colon triggers.
+    # This is significantly faster than calling RE_PROTOCOL_SAN.sub() or using a manual loop
+    # as it avoids iteration overhead and generator/object creation.
+    if (
+        ":" in text or "&" in text or "%" in text or
+        "\uff1a" in text or "\ufe55" in text or "\u2236" in text or
+        "\u205a" in text or "\ua789" in text or "\u0589" in text or
+        "\u1804" in text or "\u205d" in text
+    ):
         # Optimized: Use backreference instead of lambda (~6.5% faster).
         text = RE_PROTOCOL_SAN.sub(r"blocked-\g<0>", text)
 
