@@ -770,7 +770,9 @@ if submit_button:
             st.session_state["last_query_time"] = current_time
             with st.spinner("Searching transcripts and generating response..."):
                 try:
+                    start_time = time.perf_counter()
                     answer, context = bot.answer_query(query)
+                    duration = round(time.perf_counter() - start_time, 2)
                     # Optimized: Pre-join context for download button to avoid reconstruction on every rerun.
                     context_full_text = "\n\n".join(
                         [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -817,6 +819,7 @@ if submit_button:
                         "expander_label": expander_label,
                         "ui_context": ui_context,
                         "timestamp": time.strftime("%H:%M"),
+                        "duration": duration,
                     }
                     st.session_state["chat_history"].append(new_chat)
 
@@ -828,7 +831,8 @@ if submit_button:
                     export_text += f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
                     export_text += f"Timestamp: {new_chat['timestamp']}\n"
                     export_text += f"User: {new_chat['query']}\n"
-                    export_text += f"Assistant: {new_chat['answer']}\n\n"
+                    export_text += f"Assistant: {new_chat['answer']}\n"
+                    export_text += f"Duration: {new_chat['duration']}s\n\n"
                     st.session_state["full_export_text"] = export_text
                     st.toast("Response generated!", icon=":material/forum:")
                 except Exception as e:
@@ -911,7 +915,9 @@ if not st.session_state.get("chat_history"):
                 st.session_state["last_query_time"] = current_time
                 with st.spinner(f"Generating response for: {suggestion}..."):
                     try:
+                        start_time = time.perf_counter()
                         answer, context = bot.answer_query(suggestion)
+                        duration = round(time.perf_counter() - start_time, 2)
                         # Optimized: Pre-join context for download button.
                         context_full_text = "\n\n".join(
                             [f"Source: {c['source']}\n{c['text']}" for c in context]
@@ -954,6 +960,7 @@ if not st.session_state.get("chat_history"):
                             "expander_label": expander_label,
                             "ui_context": ui_context,
                             "timestamp": time.strftime("%H:%M"),
+                            "duration": duration,
                         }
                         st.session_state["chat_history"].append(new_chat)
 
@@ -965,7 +972,8 @@ if not st.session_state.get("chat_history"):
                         export_text += f"--- Interaction {len(st.session_state['chat_history'])} ---\n"
                         export_text += f"Timestamp: {new_chat['timestamp']}\n"
                         export_text += f"User: {new_chat['query']}\n"
-                        export_text += f"Assistant: {new_chat['answer']}\n\n"
+                        export_text += f"Assistant: {new_chat['answer']}\n"
+                        export_text += f"Duration: {new_chat['duration']}s\n\n"
                         st.session_state["full_export_text"] = export_text
                         st.toast("Response generated!", icon=":material/forum:")
                         st.rerun()
@@ -1003,8 +1011,10 @@ else:
 
     for original_idx, chat in display_history:
         ts = chat.get("timestamp", "")
+        duration = chat.get("duration")
+        duration_str = f" • {duration}s" if duration else ""
         st.markdown(
-            f"### :material/forum: Interaction {original_idx + 1} :grey[({ts})]"
+            f"### :material/forum: Interaction {original_idx + 1} :grey[({ts}{duration_str})]"
         )
         with st.chat_message("user", avatar=":material/person:"):
             # Optimized: User query is already sanitized before storage.
@@ -1015,7 +1025,8 @@ else:
         with st.chat_message("assistant", avatar=":material/smart_toy:"):
             st.markdown(chat["answer"])
             if ts:
-                st.caption(f"Response at {ts}")
+                gen_info = f" (generated in {duration}s)" if duration else ""
+                st.caption(f"Response at {ts}{gen_info}")
 
             # Optimized: Use pre-calculated expander label from session state
             # to avoid redundant set operations and sorting on every rerun.
