@@ -46,11 +46,11 @@ def convert_df_to_csv(df):
 
     # Prepend a single quote to any cell starting with a dangerous character.
     # This prevents spreadsheet applications from interpreting the cell as a formula.
-    # Dangerous characters: =, +, -, @, \t, \r
+    # Dangerous characters: =, +, -, @, \t, \r, \n and Fullwidth variants (＝, ＋, －, ＠).
     # Optimized: Use vectorized Pandas string methods on 'object' columns instead of per-cell .apply().
     # This provides a ~2.3x speedup on medium-sized datasets (e.g. 120k rows) and avoids
     # redundant checks on numeric or boolean columns.
-    dangerous_chars = ("=", "+", "-", "@", "\t", "\r")
+    dangerous_chars = ("=", "+", "-", "@", "\t", "\r", "\n", "\uff1d", "\uff0b", "\uff0d", "\uff20")
 
     for col in safe_df.select_dtypes(include=["object"]).columns:
         # Use vectorized str.startswith with the tuple of dangerous characters
