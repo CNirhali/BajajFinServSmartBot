@@ -128,6 +128,11 @@
 2. Extend protocol sanitization regexes to include functional Unicode colon variants and common named HTML entities for whitespace and control characters.
 3. Ensure fast-path checks in sanitization logic are updated to include all new trigger characters (like `&` and specific Unicode variants) to avoid accidental bypasses.
 
+## 2025-05-15 - [Security Bypass in Fast-Path Optimization]
+**Vulnerability:** XSS bypasses in protocol neutralization due to missing Unicode colon variants (Ratio, Modifier Letter Colon, etc.) in the fast-path check, even when they were present in the main sanitization regex.
+**Learning:** Performance optimizations like "fast-path" checks (using `in` or `find`) must be kept in sync with the comprehensive security filters (like regexes) they guard. A missing character in the fast-path allows the filter to be skipped entirely, even if the filter itself is robust.
+**Prevention:** Always centralize or derive the fast-path trigger list from the primary security patterns. When adding new bypass variants to a regex, ensure they are also added to any preliminary string-based detection logic.
+
 ## 2026-04-05 - [Control Token Bypass via Fullwidth Unicode Brackets]
 **Vulnerability:** LLM control token filters (e.g., `[INST]`, `<s>`) can be bypassed using Fullwidth Unicode variants of brackets and angles (e.g., `［`, `］`, `＜`, `＞`).
 **Learning:** Browsers and some LLM tokenizers may treat these Unicode variants (U+FF3B, U+FF3D, U+FF1C, U+FF1E) as equivalent to their ASCII counterparts, allowing an attacker to inject instructions that bypass standard string or regex filters.
