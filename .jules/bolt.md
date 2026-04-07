@@ -126,3 +126,10 @@
 ## 2026-04-02 - Granular Fast-Paths and UI Pre-calculation
 **Learning:** Broad fast-path checks that combine multiple triggers (e.g., '!' and ':') can cause performance degradation by triggering heavy regex scans for unrelated patterns (e.g., a simple exclamation mark triggering a full protocol URI scan). Furthermore, performing regex-based string sanitization inside Streamlit's rendering loop creates (N)$ overhead that compounds as chat history grows.
 **Action:** Implement granular, trigger-specific fast-paths to isolate expensive regex operations. Pre-calculate all UI-specific string metadata (like sanitized filenames) at the time of data creation and store it in session state to ensure the rendering loop remains (1)$ per item regardless of string complexity.
+
+## 2026-04-05 - Redundant Regex and Fast-Path Synchronization
+**Learning:** Consolidating multiple regex substitutions into a single call guarded by a comprehensive fast-path (e.g., `if "!" in text or "！" in text:`) avoids redundant $O(N)$ scans of the same string. Furthermore, performance-critical fast-paths MUST be strictly synchronized with the regex trigger characters they guard; missing variants (like specific Unicode colons) can lead to unnecessary regex execution or inconsistent behavior.
+**Action:** Always consolidate regex operations on the same string and ensure all trigger characters from the regex are reflected in the guarding fast-path logic.
+
+**Learning:** Most LLM control tags are already "clean" (e.g., `INST`, `SYS`). Always implement an $O(1)$ set lookup (`if tag in CLEAN_TAGS:`) before performing regex-based cleaning (like removing spaces/zero-width chars). This yielded a ~2x speedup for tag cleaning in benchmarks.
+**Action:** Use set-based fast-paths for categorical string normalization tasks.

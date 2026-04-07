@@ -66,3 +66,7 @@
 ## 2026-04-10 - [Searchable History & Dynamic Pluralization]
 **Learning:** For chat-based tools with persistent history, adding a search filter (with programmatic "Clear" support via `st.session_state`) significantly reduces cognitive load by allowing users to bypass long scrolls. Furthermore, implementing dynamic pluralization (e.g., "1 interaction" vs "2 interactions") in UI labels provides a subtle but critical layer of visual polish and grammatical correctness that increases overall professional feel.
 **Action:** Always include a search filter for growing message lists and ensure all count-based labels use conditional logic for proper pluralization.
+
+## 2026-04-06 - [AI Latency Visibility]
+**Learning:** For AI-powered tools, displaying response latency (generation time) increases system transparency and helps set user expectations for future queries. It also provides a subtle diagnostic tool for users to understand when the underlying model is under load.
+**Action:** Always measure LLM response duration and display it in both the UI (interaction headers/captions) and session exports to improve user trust and transparency.
