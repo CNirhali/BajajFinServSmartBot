@@ -17,9 +17,13 @@ _embedder = None
 _collection = None
 
 # Pre-compiled regex patterns for performance
+# Define a central gap pattern for characters that browsers/parsers often ignore or treat as whitespace.
+# Includes standard whitespace, invisible Unicode (zero-width/format), and backslashes used for obfuscation.
+GAP_PATTERN = r"[\s\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]"
+
 # Used in sanitize_markdown to prevent data exfiltration via image tags.
-# Enhanced: Includes fullwidth Unicode variants (！, ［) to prevent obfuscation bypasses.
-RE_MD_IMAGE = re.compile(r"[!！]+[\[［]")
+# Enhanced: Includes fullwidth Unicode variants and allows "gaps" between the exclamation mark and brackets.
+RE_MD_IMAGE = re.compile(rf"[!！]+{GAP_PATTERN}*[\[［]")
 
 
 # Used in ask_mistral_ollama to escape LLM control tokens (Mistral/Llama/System)
@@ -30,8 +34,8 @@ def _build_control_token_regex(tags, wrappers):
     Builds a regex to match control tokens with internal obfuscation.
     wrappers: list of tuples of (opening, closing) characters, e.g. [('[', ']')]
     """
-    # Expanded: Includes additional invisible/format Unicode characters to prevent obfuscation bypasses.
-    gap = r"[\s\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]"
+    # Expanded: Includes additional invisible/format Unicode characters and backslashes to prevent obfuscation bypasses.
+    gap = GAP_PATTERN
     tag_patterns = []
     for tag in tags:
         # Each character in the tag can be followed by optional gaps/spaces
@@ -54,8 +58,11 @@ def _build_control_token_regex(tags, wrappers):
         opening = re.escape(wrappers[0][0])
         closing = re.escape(wrappers[0][1])
 
+    # Enhanced: Matches variant slashes (Fullwidth ／, backslash \) in the slash group for better protection.
+    # Using non-greedy gap*? before the slash group ensures that variant slashes are captured by the group
+    # rather than being consumed by the preceding gap pattern.
     return re.compile(
-        rf"{opening}{gap}*(?P<slash>/?){gap}*(?P<tag>{'|'.join(tag_patterns)}){gap}*{closing}",
+        rf"{opening}{gap}*?(?P<slash>[/／\\]?){gap}*(?P<tag>{'|'.join(tag_patterns)}){gap}*{closing}",
         re.IGNORECASE,
     )
 
@@ -73,8 +80,8 @@ RE_CONTROL_ANGLE = _build_control_token_regex(["s"], [("<", ">"), ("\uff1c", "\u
 # Expanded: Includes directional formatting and invisible formatters.
 ZERO_WIDTH_CHARS = "\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2060\u2061\u2062\u2063\u2064\u2065\u2066\u2067\u2068\u2069\u206a\u206b\u206c\u206d\u206e\u206f\ufeff"
 RE_ZERO_WIDTH = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]")
-# Optimized: Combined gap regex for single-pass removal of whitespace and invisible characters.
-RE_GAP = re.compile(r"[\s\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]")
+# Optimized: Combined gap regex for single-pass removal of whitespace, invisible characters, and backslashes.
+RE_GAP = re.compile(GAP_PATTERN)
 
 # Protocols to block in markdown links for security
 PROTOCOLS = [
@@ -192,11 +199,15 @@ def _clean_tag(match):
     slash = match.group("slash") or ""
     tag = match.group("tag")
 
+    # Security Enhancement: Normalize variant slashes (Fullwidth ／, backslash \) to standard forward slash.
+    if slash and slash != "/":
+        slash = "/"
+
     # Optimized: Add fast-path check for already-clean tags to skip regex substitution.
     # This provides a ~2.5x speedup for standard tags like [INST] or <s>.
     clean_tag = tag.upper()
     if clean_tag not in CLEAN_TAGS:
-        # Fallback: Use RE_GAP for single-pass removal of whitespace and invisible characters.
+        # Fallback: Use RE_GAP for single-pass removal of whitespace, invisible characters, and backslashes.
         clean_tag = RE_GAP.sub("", tag).upper()
 
     # Identify the bracket type for correct neutralization formatting.

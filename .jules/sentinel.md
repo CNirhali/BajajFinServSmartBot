@@ -141,3 +141,8 @@
 **Vulnerability:** A robust LLM control token sanitization function (`_escape_control_tokens`) was completely neutralized by a weak stub implementation appended to the end of `bot.py`.
 **Learning:** In Python, if a function is defined multiple times in the same module, the last definition silently overrides all previous ones. This can be used (intentionally or accidentally) to bypass critical security filters while the "secure" code remains visible earlier in the file.
 **Prevention:** Regularly audit the codebase for duplicate function or variable definitions. Use linting tools that detect shadowed names. Ensure that security-critical functions are protected and that the final exported version is the intended one.
+
+## 2026-04-07 - [Greedy Regex Pitfalls in Sanitization Filters]
+**Vulnerability:** Security filters using greedy "gap" patterns (e.g., `gap*`) before optional capture groups (e.g., `(?P<slash>[/／\\]?)`) can fail to capture variant slashes if the gap pattern also includes the slash character (like backslash).
+**Learning:** In `_build_control_token_regex`, the `GAP_PATTERN` was updated to include backslashes (`\\`). When matching an obfuscated tag like `[\USER]`, the greedy `gap*` would consume the backslash, leaving the `slash` capture group empty. This prevented the intended normalization of variant slashes in the helper function.
+**Prevention:** Use non-greedy quantifiers (`*?`) for gap patterns that precede optional security-critical capture groups to ensure specific variants are correctly captured and normalized rather than being "swallowed" by the general gap filter.
