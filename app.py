@@ -151,6 +151,7 @@ def login():
         )
         login_submit = st.form_submit_button(
             "Login",
+            type="primary",
             help="Verify credentials and enter the application. Press Enter to submit.",
             width="stretch",
             icon=":material/login:",
@@ -305,8 +306,10 @@ st.markdown("# 🤖 Bajaj Finserv SmartBot")
 
 h1, h2 = st.columns([0.7, 0.3])
 with h1:
+    status_icon = ":material/check_circle:" if (pdf_count + csv_count) > 0 else ":material/warning:"
+    status_text = ":green[Assistant Ready]" if (pdf_count + csv_count) > 0 else ":red[Knowledge Base Empty]"
     st.markdown(f"""
-    :material/check_circle: :green[Assistant Ready] | :material/history: :grey[Last updated: {last_updated}]
+    {status_icon} {status_text} | :material/history: :grey[Last updated: {last_updated}]
 
     **Knowledge Base:** :blue[{pdf_count} PDFs] | :green[{csv_count} CSVs] | :orange[{total_size_str} total]
 
@@ -342,7 +345,7 @@ with h2:
                         st.caption(":grey[*No PDF documents indexed*]")
                 for f in filtered_pdfs:
                     # Optimized: Filename is already sanitized in get_knowledge_base_details.
-                    st.caption(f":material/description: {f['name']} :grey[({f['size']})]")
+                    st.markdown(f":material/description: **{f['name']}** :grey[({f['size']})]")
         with c2:
             st.markdown(f"**:material/bar_chart: CSVs ({len(filtered_csvs)}/{csv_count})**")
             with st.container(height=200):
@@ -353,7 +356,7 @@ with h2:
                         st.caption(":grey[*No CSV data files indexed*]")
                 for f in filtered_csvs:
                     # Optimized: Filename is already sanitized in get_knowledge_base_details.
-                    st.caption(f":material/bar_chart: {f['name']} :grey[({f['size']})]")
+                    st.markdown(f":material/bar_chart: **{f['name']}** :grey[({f['size']})]")
 
 st.markdown("*Powered by Mistral LLM (Ollama) + Smart Retrieval.*")
 
@@ -751,6 +754,7 @@ with st.form(key="chat_form", clear_on_submit=True):
     )
     submit_button = st.form_submit_button(
         label="Ask Assistant",
+        type="primary",
         help="Submit your question to the AI assistant. Press Ctrl+Enter to submit.",
         width="stretch",
         icon=":material/chat:",
@@ -995,17 +999,19 @@ else:
             or history_search in chat["answer"].lower()
         ]
         display_history = reversed(filtered_history)
-        st.caption(
+        c1, c2 = st.columns([0.8, 0.2])
+        c1.caption(
             f":material/filter_list: Showing {len(filtered_history)} of {history_count} interactions matching ':blue[{history_search}]'"
         )
+        if c2.button("Clear Search", icon=":material/close:", key="clear_search_btn", width="stretch"):
+            st.session_state["history_search_input"] = ""
+            st.rerun()
+
         if not filtered_history:
             st.info(
                 "No matching interactions found. Try a different search term.",
                 icon=":material/search_off:",
             )
-            if st.button("Clear Search", icon=":material/close:"):
-                st.session_state["history_search_input"] = ""
-                st.rerun()
     else:
         display_history = reversed(list(enumerate(st.session_state["chat_history"])))
 
@@ -1025,7 +1031,10 @@ else:
         with st.chat_message("assistant", avatar=":material/smart_toy:"):
             st.markdown(chat["answer"])
             if ts:
-                gen_info = f" (generated in {duration}s)" if duration else ""
+                source_count = len(set(c["source"] for c in chat.get("context", [])))
+                source_word = "source" if source_count == 1 else "sources"
+                source_text = f" using {source_count} {source_word}" if source_count else ""
+                gen_info = f" (generated in {duration}s{source_text})" if duration else ""
                 st.caption(f"Response at {ts}{gen_info}")
 
             # Optimized: Use pre-calculated expander label from session state
