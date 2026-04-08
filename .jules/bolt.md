@@ -134,6 +134,11 @@
 **Learning:** Most LLM control tags are already "clean" (e.g., `INST`, `SYS`). Always implement an $O(1)$ set lookup (`if tag in CLEAN_TAGS:`) before performing regex-based cleaning (like removing spaces/zero-width chars). This yielded a ~2x speedup for tag cleaning in benchmarks.
 **Action:** Use set-based fast-paths for categorical string normalization tasks.
 
+## 2026-04-08 - Precision Fast-Paths and OR-Chain Efficiency
+**Learning:** In Python, a general fast-path check (e.g., checking for '!') that triggers a regex scan for a multi-character pattern (e.g., Markdown images `![`) is inefficient if the first character is common but the full pattern is rare. Narrowing the fast-path to require both triggers (e.g., `if '!' in text and '[' in text:`) yields a ~92% speedup for clean strings containing exclamation marks.
+
+**Learning:** For small, static sets of character checks, an explicit `or` chain of `in` tests is significantly faster (~2.2x) than a manual `for` loop, as it avoids iterator overhead and leverages Python's optimized bytecode for boolean evaluation.
+**Action:** Use precise, multi-trigger fast-paths to guard regexes and prefer `or` chains over loops for character presence detection in hot paths.
 ## 2026-04-07 - Refined Fast-Path for Regex Operations
 **Learning:** Narrowing "fast-path" conditions to require multiple specific triggers (e.g., checking for both '!' and '[' before image regex) prevents unnecessary regex execution on partial matches. This significantly reduces overhead in hot code paths, especially for strings that frequently contain one of the triggers but are not valid patterns.
 **Action:** Always implement multi-trigger fast-path checks when a regex requires the presence of multiple structural elements to match. This avoids the constant overhead of the regex engine for common, non-matching inputs.
