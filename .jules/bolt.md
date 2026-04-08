@@ -139,3 +139,6 @@
 
 **Learning:** For small, static sets of character checks, an explicit `or` chain of `in` tests is significantly faster (~2.2x) than a manual `for` loop, as it avoids iterator overhead and leverages Python's optimized bytecode for boolean evaluation.
 **Action:** Use precise, multi-trigger fast-paths to guard regexes and prefer `or` chains over loops for character presence detection in hot paths.
+## 2026-04-07 - Refined Fast-Path for Regex Operations
+**Learning:** Narrowing "fast-path" conditions to require multiple specific triggers (e.g., checking for both '!' and '[' before image regex) prevents unnecessary regex execution on partial matches. This significantly reduces overhead in hot code paths, especially for strings that frequently contain one of the triggers but are not valid patterns.
+**Action:** Always implement multi-trigger fast-path checks when a regex requires the presence of multiple structural elements to match. This avoids the constant overhead of the regex engine for common, non-matching inputs.

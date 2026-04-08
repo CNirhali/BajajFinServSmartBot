@@ -151,3 +151,8 @@
 **Vulnerability:** Security filters using greedy "gap" patterns (e.g., `gap*`) before optional capture groups (e.g., `(?P<slash>[/／\\]?)`) can fail to capture variant slashes if the gap pattern also includes the slash character (like backslash).
 **Learning:** In `_build_control_token_regex`, the `GAP_PATTERN` was updated to include backslashes (`\\`). When matching an obfuscated tag like `[\USER]`, the greedy `gap*` would consume the backslash, leaving the `slash` capture group empty. This prevented the intended normalization of variant slashes in the helper function.
 **Prevention:** Use non-greedy quantifiers (`*?`) for gap patterns that precede optional security-critical capture groups to ensure specific variants are correctly captured and normalized rather than being "swallowed" by the general gap filter.
+
+## 2026-04-08 - [Hardening Control Token Sanitization against Soft Hyphen and MVS Bypasses]
+**Vulnerability:** Prompt injection bypass via Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e) injected into LLM control tokens (e.g., `[I\u00adNST]`).
+**Learning:** While the application already handled various zero-width characters and whitespace, it missed Soft Hyphen and Mongolian Vowel Separator. These characters are often ignored by browsers and LLM tokenizers, but they break string-matching filters that don't explicitly account for them.
+**Prevention:** Expand the set of invisible and format characters in security filters (`GAP_PATTERN` and `ZERO_WIDTH_CHARS`) to include `\u00ad` and `\u180e`. Always verify sanitization logic with regression tests that include these specific bypass variants.

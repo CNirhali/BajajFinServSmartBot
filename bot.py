@@ -19,7 +19,8 @@ _collection = None
 # Pre-compiled regex patterns for performance
 # Define a central gap pattern for characters that browsers/parsers often ignore or treat as whitespace.
 # Includes standard whitespace, invisible Unicode (zero-width/format), and backslashes used for obfuscation.
-GAP_PATTERN = r"[\s\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]"
+# Hardened: Added Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e).
+GAP_PATTERN = r"[\s\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]"
 
 # Used in sanitize_markdown to prevent data exfiltration via image tags.
 # Enhanced: Includes fullwidth Unicode variants and allows "gaps" between the exclamation mark and brackets.
@@ -78,8 +79,9 @@ RE_CONTROL_ANGLE = _build_control_token_regex(["s"], [("<", ">"), ("\uff1c", "\u
 
 # Pre-compiled regex for zero-width and format characters to improve performance in _escape_control_tokens
 # Expanded: Includes directional formatting and invisible formatters.
-ZERO_WIDTH_CHARS = "\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2060\u2061\u2062\u2063\u2064\u2065\u2066\u2067\u2068\u2069\u206a\u206b\u206c\u206d\u206e\u206f\ufeff"
-RE_ZERO_WIDTH = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]")
+# Hardened: Added Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e).
+ZERO_WIDTH_CHARS = "\u00ad\u180e\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2060\u2061\u2062\u2063\u2064\u2065\u2066\u2067\u2068\u2069\u206a\u206b\u206c\u206d\u206e\u206f\ufeff"
+RE_ZERO_WIDTH = re.compile(r"[\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]")
 # Optimized: Combined gap regex for single-pass removal of whitespace, invisible characters, and backslashes.
 RE_GAP = re.compile(GAP_PATTERN)
 
@@ -353,6 +355,12 @@ def sanitize_markdown(text):
     # Optimized: Narrowed fast-path to require both an exclamation mark AND an opening bracket
     # (including Fullwidth variants) to minimize unnecessary regex execution on plain text.
     # This provides a ~92% speedup for non-image strings containing exclamation marks.
+    # Optimized: Use a fast-path check for both exclamation marks and opening brackets
+    # to bypass the regex entirely. This avoids unnecessary regex engine overhead for
+    # strings that contain '!' but are not image tags (e.g., "Note!").
+    # We use RE_MD_IMAGE to handle multiple exclamation marks (e.g., !![) that could bypass a simple replace.
+    # Optimized: Consolidated RE_MD_IMAGE.sub calls and improved fast-path to include
+    # Fullwidth variants (！, ［).
     if ("!" in text or "！" in text) and ("[" in text or "［" in text):
         text = RE_MD_IMAGE.sub("[", text)
 
