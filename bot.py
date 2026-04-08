@@ -352,11 +352,13 @@ def sanitize_markdown(text):
     # 1. Sanitize Markdown image tags (e.g., ![alt](url))
     # Security Enhancement: Removing '!' from markdown image syntax prevents automatic
     # loading of external resources, which could be used to leak data via URL parameters.
-    # Optimized: Use a fast-path check for '!' or '！' to bypass the regex entirely.
+    # Optimized: Use a fast-path check for both exclamation marks and opening brackets
+    # to bypass the regex entirely. This avoids unnecessary regex engine overhead for
+    # strings that contain '!' but are not image tags (e.g., "Note!").
     # We use RE_MD_IMAGE to handle multiple exclamation marks (e.g., !![) that could bypass a simple replace.
     # Optimized: Consolidated RE_MD_IMAGE.sub calls and improved fast-path to include
-    # Fullwidth exclamation marks (！).
-    if "!" in text or "！" in text:
+    # Fullwidth variants (！, ［).
+    if ("!" in text or "！" in text) and ("[" in text or "［" in text):
         text = RE_MD_IMAGE.sub("[", text)
 
     # 2. Sanitize malicious URI protocols (e.g., javascript:, data:)
