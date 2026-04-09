@@ -495,6 +495,12 @@ def format_source_label(context):
     """
     # Optimized: Use set comprehension and avoid redundant list() conversion before sorting.
     sources = sorted({c["source"] for c in context})
+    num_sources = len(sources)
+    num_chunks = len(context)
+
+    source_word = "source" if num_sources == 1 else "sources"
+    chunk_word = "chunk" if num_chunks == 1 else "chunks"
+
     # Security: Sanitize source names to prevent Markdown injection
     # Affordance: Add icons based on file type for better visual scannability.
     safe_sources = []
@@ -507,7 +513,7 @@ def format_source_label(context):
     if len(source_names) > 60:
         source_names = source_names[:57] + "..."
 
-    label = f"🔍 Show context from {len(sources)} sources"
+    label = f"🔍 Show context from {num_sources} {source_word} ({num_chunks} {chunk_word})"
     if sources:
         label += f": {source_names}"
     return label, sources
