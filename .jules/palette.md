@@ -70,3 +70,7 @@
 ## 2026-04-06 - [AI Latency Visibility]
 **Learning:** For AI-powered tools, displaying response latency (generation time) increases system transparency and helps set user expectations for future queries. It also provides a subtle diagnostic tool for users to understand when the underlying model is under load.
 **Action:** Always measure LLM response duration and display it in both the UI (interaction headers/captions) and session exports to improve user trust and transparency.
+
+## 2026-04-12 - [Retrieval Granularity & Information Scent]
+**Learning:** Including evidence metadata such as unique source counts and total chunk counts (with proper pluralization) in AI response captions and expanded source lists significantly increases user trust and system transparency. It provides an immediate "information scent" about the breadth and depth of the AI's reasoning basis.
+**Action:** Always surface retrieval granularity (counts of sources and chunks) in the UI to help users evaluate the grounding of AI responses.

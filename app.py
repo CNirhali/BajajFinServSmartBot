@@ -794,10 +794,13 @@ if submit_button:
                     ui_context = []
                     for src in sorted(grouped_context.keys()):
                         icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
+                        chunks = grouped_context[src]
+                        num_chunks = len(chunks)
+                        chunk_word = "chunk" if num_chunks == 1 else "chunks"
                         ui_context.append(
                             {
-                                "source_label": f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**]",
-                                "content": "\n\n".join(grouped_context[src]),
+                                "source_label": f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**] :grey[({num_chunks} {chunk_word})]",
+                                "content": "\n\n".join(chunks),
                             }
                         )
 
@@ -938,10 +941,13 @@ if not st.session_state.get("chat_history"):
                         ui_context = []
                         for src in sorted(grouped_context.keys()):
                             icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
+                            chunks = grouped_context[src]
+                            num_chunks = len(chunks)
+                            chunk_word = "chunk" if num_chunks == 1 else "chunks"
                             ui_context.append(
                                 {
-                                    "source_label": f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**]",
-                                    "content": "\n\n".join(grouped_context[src]),
+                                    "source_label": f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**] :grey[({num_chunks} {chunk_word})]",
+                                    "content": "\n\n".join(chunks),
                                 }
                             )
 
@@ -1062,10 +1068,13 @@ else:
 
                     for src in sorted(grouped_context.keys()):
                         icon = ":material/bar_chart:" if src.lower().endswith(".csv") else ":material/description:"
+                        chunks = grouped_context[src]
+                        num_chunks = len(chunks)
+                        chunk_word = "chunk" if num_chunks == 1 else "chunks"
                         st.markdown(
-                            f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**]"
+                            f"{icon} :blue[**Source: {bot.sanitize_markdown(src)}**] :grey[({num_chunks} {chunk_word})]"
                         )
-                        st.code("\n\n".join(grouped_context[src]), language=None)
+                        st.code("\n\n".join(chunks), language=None)
 
                 # Download button for answer and context
                 # Optimized: Use pre-calculated individual download text from session state.
