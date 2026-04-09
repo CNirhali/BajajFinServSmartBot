@@ -250,12 +250,21 @@ class TestSecurity(unittest.TestCase):
     def test_protocol_neutralization_with_ad_and_mvs(self, mock_post):
         mock_post.return_value.status_code = 200
         # Simulated malicious LLM output with Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e)
+        # and their HTML entity equivalents (decimal and hex).
         mock_post.return_value.json.return_value = {
-            "response": "Bypass: [u1](javascript\u00ad:a) and [u2](javascript\u180e:a)"
+            "response": (
+                "Bypass: [u1](javascript\u00ad:a), [u2](javascript\u180e:a), "
+                "[u3](javascript&#173;:a), [u4](javascript&#xAD;:a), "
+                "[u5](javascript&#6158;:a), [u6](javascript&#x180E;:a)"
+            )
         }
         answer = ask_mistral_ollama("safe query", "safe context")
         self.assertIn("blocked-javascript\u00ad:a", answer)
         self.assertIn("blocked-javascript\u180e:a", answer)
+        self.assertIn("blocked-javascript&#173;:a", answer)
+        self.assertIn("blocked-javascript&#xAD;:a", answer)
+        self.assertIn("blocked-javascript&#6158;:a", answer)
+        self.assertIn("blocked-javascript&#x180E;:a", answer)
 
 
 if __name__ == "__main__":

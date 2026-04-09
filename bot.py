@@ -122,8 +122,8 @@ def _build_protocol_regex():
     # Hardened: Added Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e).
     gap_variants = [
         r"[\s\u00ad\u180e\x00-\x1F\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]",
-        r"&#0*(?:0|9|10|13|32);?",
-        r"&#[xX]0*(?:0|9|[aA]|[dD]|20);?",
+        r"&#0*(?:0|9|10|13|32|173|6158);?",
+        r"&#[xX]0*(?:0|9|[aA]|[dD]|20|[aA][dD]|180[eE]);?",
         r"%0*(?:0|9|[aA]|[dD])",
         r"%20",
         r"&Tab;?",

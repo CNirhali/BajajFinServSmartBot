@@ -156,3 +156,8 @@
 **Vulnerability:** Prompt injection bypass via Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e) injected into LLM control tokens (e.g., `[I\u00adNST]`).
 **Learning:** While the application already handled various zero-width characters and whitespace, it missed Soft Hyphen and Mongolian Vowel Separator. These characters are often ignored by browsers and LLM tokenizers, but they break string-matching filters that don't explicitly account for them.
 **Prevention:** Expand the set of invisible and format characters in security filters (`GAP_PATTERN` and `ZERO_WIDTH_CHARS`) to include `\u00ad` and `\u180e`. Always verify sanitization logic with regression tests that include these specific bypass variants.
+
+## 2026-04-09 - [Hardening Protocol Sanitization against Invisible Character and HTML Entity Bypasses]
+**Vulnerability:** XSS bypass via Soft Hyphen (\u00ad), Mongolian Vowel Separator (\u180e), and their HTML entity equivalents (e.g., `&#173;`, `&#x180E;`) injected into dangerous URI protocols like `javascript:`.
+**Learning:** Security filters must account for the high permissiveness of browsers. While the project's `GAP_PATTERN` for control tokens was hardened, the protocol neutralization regex used a localized `gap_variants` list that was missing these characters and their entity representations.
+**Prevention:** Ensure that all regex-based security filters consistently use the full set of known obfuscation characters. Audit localized `gap_variants` lists against the central `GAP_PATTERN` and include common decimal/hex HTML entity variations for all blocked characters.
