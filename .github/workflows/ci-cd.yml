@@ -35,7 +35,7 @@ jobs:
 
     - name: Run tests
       run: |
-        python test_bot.py
+        python -m unittest discover .
 
     - name: Build Docker image
       run: |
