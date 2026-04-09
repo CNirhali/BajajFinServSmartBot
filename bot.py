@@ -119,8 +119,9 @@ def _build_protocol_regex():
     # and URL-encoded variants that can be used for obfuscation.
     # e.g. \n, \\, \u200b, &#10;, &#x0A;, %0A, &Tab;, &NewLine;, &nbsp;
     # Expanded gap pattern to include directional formatting and invisible formatters.
+    # Hardened: Added Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e).
     gap_variants = [
-        r"[\s\x00-\x1F\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]",
+        r"[\s\u00ad\u180e\x00-\x1F\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]",
         r"&#0*(?:0|9|10|13|32);?",
         r"&#[xX]0*(?:0|9|[aA]|[dD]|20);?",
         r"%0*(?:0|9|[aA]|[dD])",

@@ -246,6 +246,17 @@ class TestSecurity(unittest.TestCase):
         self.assertIn("[exfil］(http://a)", answer)
         self.assertIn("[exfil](http://a)", answer)
 
+    @patch("bot.http_session.post")
+    def test_protocol_neutralization_with_ad_and_mvs(self, mock_post):
+        mock_post.return_value.status_code = 200
+        # Simulated malicious LLM output with Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e)
+        mock_post.return_value.json.return_value = {
+            "response": "Bypass: [u1](javascript\u00ad:a) and [u2](javascript\u180e:a)"
+        }
+        answer = ask_mistral_ollama("safe query", "safe context")
+        self.assertIn("blocked-javascript\u00ad:a", answer)
+        self.assertIn("blocked-javascript\u180e:a", answer)
+
 
 if __name__ == "__main__":
     unittest.main()
