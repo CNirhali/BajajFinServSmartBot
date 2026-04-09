@@ -142,3 +142,11 @@
 ## 2026-04-07 - Refined Fast-Path for Regex Operations
 **Learning:** Narrowing "fast-path" conditions to require multiple specific triggers (e.g., checking for both '!' and '[' before image regex) prevents unnecessary regex execution on partial matches. This significantly reduces overhead in hot code paths, especially for strings that frequently contain one of the triggers but are not valid patterns.
 **Action:** Always implement multi-trigger fast-path checks when a regex requires the presence of multiple structural elements to match. This avoids the constant overhead of the regex engine for common, non-matching inputs.
+
+## 2026-04-09 - Regex Search vs. Loop for Large Character Sets
+**Learning:** For scanning a string for any character in a large set (e.g., 30+ zero-width/format characters),  is significantly faster (~3x) than a manual Python  loop for "clean" inputs, as it leverages the optimized C-based regex engine. While a loop can be faster for "dirty" inputs due to early exit, the common case of clean strings favors the regex approach.
+**Action:** Use  instead of  when checking for the presence of many possible trigger characters in performance-critical code paths.
+
+## 2026-04-09 - Regex Search vs. Loop for Large Character Sets
+**Learning:** For scanning a string for any character in a large set (e.g., 30+ zero-width/format characters), `regex.search()` is significantly faster (~3x) than a manual Python `for` loop for "clean" inputs, as it leverages the optimized C-based regex engine. While a loop can be faster for "dirty" inputs due to early exit, the common case of clean strings favors the regex approach.
+**Action:** Use `regex.search()` instead of `for char in char_set:` when checking for the presence of many possible trigger characters in performance-critical code paths.
