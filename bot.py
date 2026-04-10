@@ -18,9 +18,10 @@ _collection = None
 
 # Pre-compiled regex patterns for performance
 # Define a central gap pattern for characters that browsers/parsers often ignore or treat as whitespace.
-# Includes standard whitespace, invisible Unicode (zero-width/format), and backslashes used for obfuscation.
-# Hardened: Added Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e).
-GAP_PATTERN = r"[\s\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]"
+# Includes standard whitespace, ASCII control characters, invisible Unicode (zero-width/format),
+# and backslashes used for obfuscation.
+# Hardened: Added ASCII control characters (\x00-\x1f\x7f), Soft Hyphen (\u00ad), and Mongolian Vowel Separator (\u180e).
+GAP_PATTERN = r"[\s\x00-\x1f\x7f\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]"
 
 # Used in sanitize_markdown to prevent data exfiltration via image tags.
 # Enhanced: Includes fullwidth Unicode variants and allows "gaps" between the exclamation mark and brackets.
@@ -79,9 +80,9 @@ RE_CONTROL_ANGLE = _build_control_token_regex(["s"], [("<", ">"), ("\uff1c", "\u
 
 # Pre-compiled regex for zero-width and format characters to improve performance in _escape_control_tokens
 # Expanded: Includes directional formatting and invisible formatters.
-# Hardened: Added Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e).
-ZERO_WIDTH_CHARS = "\u00ad\u180e\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2060\u2061\u2062\u2063\u2064\u2065\u2066\u2067\u2068\u2069\u206a\u206b\u206c\u206d\u206e\u206f\ufeff"
-RE_ZERO_WIDTH = re.compile(r"[\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]")
+# Hardened: Added ASCII control characters (\x00-\x1f\x7f), Soft Hyphen (\u00ad), and Mongolian Vowel Separator (\u180e).
+ZERO_WIDTH_CHARS = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f\u00ad\u180e\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2060\u2061\u2062\u2063\u2064\u2065\u2066\u2067\u2068\u2069\u206a\u206b\u206c\u206d\u206e\u206f\ufeff"
+RE_ZERO_WIDTH = re.compile(r"[\x00-\x1f\x7f\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]")
 # Optimized: Combined gap regex for single-pass removal of whitespace, invisible characters, and backslashes.
 RE_GAP = re.compile(GAP_PATTERN)
 
@@ -119,12 +120,13 @@ def _build_protocol_regex():
     # and URL-encoded variants that can be used for obfuscation.
     # e.g. \n, \\, \u200b, &#10;, &#x0A;, %0A, &Tab;, &NewLine;, &nbsp;
     # Expanded gap pattern to include directional formatting and invisible formatters.
-    # Hardened: Added Soft Hyphen (\u00ad) and Mongolian Vowel Separator (\u180e).
+    # Hardened: Added ASCII control characters (\x00-\x1f\x7f), Soft Hyphen (\u00ad), and Mongolian Vowel Separator (\u180e).
     gap_variants = [
-        r"[\s\u00ad\u180e\x00-\x1F\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]",
-        r"&#0*(?:0|9|10|13|32|173|6158);?",
-        r"&#[xX]0*(?:0|9|[aA]|[dD]|20|[aA][dD]|180[eE]);?",
-        r"%0*(?:0|9|[aA]|[dD])",
+        r"[\s\x00-\x1f\x7f\u00ad\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\\]",
+        r"&#0*(?:[0-9]|[12][0-9]|3[012]|127|173|6158);?",
+        r"&#[xX]0*(?:[0-9a-fA-F]|1[0-9a-fA-F]|7[fF]|20|[aA][dD]|180[eE]);?",
+        r"%[01][0-9a-fA-F]",
+        r"%7[fF]",
         r"%20",
         r"&Tab;?",
         r"&NewLine;?",
