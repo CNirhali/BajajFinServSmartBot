@@ -302,6 +302,9 @@ if "indexed_files" not in st.session_state:
     total_size_str,
 ) = get_knowledge_base_details()
 
+pdf_label = "PDF" if pdf_count == 1 else "PDFs"
+csv_label = "CSV" if csv_count == 1 else "CSVs"
+
 st.markdown("# 🤖 Bajaj Finserv SmartBot")
 
 h1, h2 = st.columns([0.7, 0.3])
@@ -311,7 +314,7 @@ with h1:
     st.markdown(f"""
     {status_icon} {status_text} | :material/history: :grey[Last updated: {last_updated}]
 
-    **Knowledge Base:** :blue[{pdf_count} PDFs] | :green[{csv_count} CSVs] | :orange[{total_size_str} total]
+    **Knowledge Base:** :blue[{pdf_count} {pdf_label}] | :green[{csv_count} {csv_label}] | :orange[{total_size_str} total]
 
     Ask anything about the uploaded Earnings Call Transcripts, BFS, or Sensex data!
     """)
@@ -331,29 +334,47 @@ with h2:
             key="kb_search",
         ).lower()
 
+        if search_term:
+            if st.button(
+                "Clear Search",
+                icon=":material/close:",
+                key="clear_kb_search",
+                width="stretch",
+                help="Reset the search filter to show all files.",
+            ):
+                st.session_state["kb_search"] = ""
+                st.rerun()
+
         filtered_pdfs = [f for f in pdf_files if search_term in f["name"].lower()]
         filtered_csvs = [f for f in csv_files if search_term in f["name"].lower()]
 
+        pdf_pop_label = "PDF" if pdf_count == 1 else "PDFs"
+        csv_pop_label = "CSV" if csv_count == 1 else "CSVs"
+
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f"**:material/description: PDFs ({len(filtered_pdfs)}/{pdf_count})**")
+            st.markdown(
+                f"**:material/description: {pdf_pop_label} ({len(filtered_pdfs)}/{pdf_count})**"
+            )
             with st.container(height=200):
                 if not filtered_pdfs:
                     if search_term:
-                        st.caption(":grey[*No matching PDFs found*]")
+                        st.caption(f":grey[*No matching {pdf_pop_label} found*]")
                     else:
-                        st.caption(":grey[*No PDF documents indexed*]")
+                        st.caption(f":grey[*No {pdf_pop_label} documents indexed*]")
                 for f in filtered_pdfs:
                     # Optimized: Filename is already sanitized in get_knowledge_base_details.
                     st.markdown(f":material/description: **{f['name']}** :grey[({f['size']})]")
         with c2:
-            st.markdown(f"**:material/bar_chart: CSVs ({len(filtered_csvs)}/{csv_count})**")
+            st.markdown(
+                f"**:material/bar_chart: {csv_pop_label} ({len(filtered_csvs)}/{csv_count})**"
+            )
             with st.container(height=200):
                 if not filtered_csvs:
                     if search_term:
-                        st.caption(":grey[*No matching CSVs found*]")
+                        st.caption(f":grey[*No matching {csv_pop_label} found*]")
                     else:
-                        st.caption(":grey[*No CSV data files indexed*]")
+                        st.caption(f":grey[*No {csv_pop_label} data files indexed*]")
                 for f in filtered_csvs:
                     # Optimized: Filename is already sanitized in get_knowledge_base_details.
                     st.markdown(f":material/bar_chart: **{f['name']}** :grey[({f['size']})]")
