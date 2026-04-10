@@ -74,3 +74,7 @@
 ## 2026-04-12 - [Retrieval Granularity & Information Scent]
 **Learning:** Including evidence metadata such as unique source counts and total chunk counts (with proper pluralization) in AI response captions and expanded source lists significantly increases user trust and system transparency. It provides an immediate "information scent" about the breadth and depth of the AI's reasoning basis.
 **Action:** Always surface retrieval granularity (counts of sources and chunks) in the UI to help users evaluate the grounding of AI responses.
+
+## 2026-04-14 - [Grammatical Polish and Search Ergonomics]
+**Learning:** Implement dynamic pluralization for document type counts (e.g., '1 PDF' vs '2 PDFs') across headers and knowledge base popovers ensures grammatical accuracy and professional UI polish. Furthermore, providing a 'Clear Search' button that appears conditionally only when a search term is present reduces UI clutter while maintaining high accessibility for power users.
+**Action:** Use conditional logic for all count-based labels and ensure all search inputs have an adjacent, programmatic "Clear" trigger.
